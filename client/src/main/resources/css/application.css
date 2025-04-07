@@ -1,0 +1,158 @@
+/* Ana Uygulama Stili */
+
+.root {
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+    -fx-background-color: #f5f5f5;
+}
+
+/* Buton Stilleri */
+.button {
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 4px;
+}
+
+.primary-button {
+    -fx-background-color: #2a9d8f;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.primary-button:hover {
+    -fx-background-color: #1e7e78;
+}
+
+.secondary-button {
+    -fx-background-color: #e9c46a;
+    -fx-text-fill: #333333;
+}
+
+.secondary-button:hover {
+    -fx-background-color: #dbb53e;
+}
+
+.danger-button {
+    -fx-background-color: #e76f51;
+    -fx-text-fill: white;
+}
+
+.danger-button:hover {
+    -fx-background-color: #d05a3b;
+}
+
+/* Faz Stilleri */
+.night-phase {
+    -fx-background-color: #1a1a2e;
+    -fx-text-fill: #e0e0e0;
+}
+
+.day-phase {
+    -fx-background-color: #ffd166;
+    -fx-text-fill: #333333;
+}
+
+/* TextArea ve TextField Stilleri */
+.text-area, .text-field {
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+}
+
+.text-area .content {
+    -fx-background-color: white;
+}
+
+.text-area:focused, .text-field:focused {
+    -fx-border-color: #2a9d8f;
+}
+
+/* Liste ve Tablo Stilleri */
+.list-view, .table-view {
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+}
+
+.list-cell, .table-row-cell {
+    -fx-padding: 8px;
+}
+
+.list-cell:odd, .table-row-cell:odd {
+    -fx-background-color: #f9f9f9;
+}
+
+.list-cell:selected, .table-row-cell:selected {
+    -fx-background-color: #2a9d8f;
+    -fx-text-fill: white;
+}
+
+/* Tab Stilleri */
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-radius: 5 5 0 0;
+    -fx-padding: 10px 15px;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: #2a9d8f;
+    -fx-text-fill: white;
+}
+
+/* Özel Komponenet Stilleri */
+.chat-area {
+    -fx-background-color: white;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-padding: 10px;
+}
+
+.player-list {
+    -fx-padding: 10px;
+    -fx-background-color: white;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+}
+
+.action-panel {
+    -fx-background-color: #f0f0f0;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-padding: 15px;
+    -fx-spacing: 10px;
+}
+
+.status-bar {
+    -fx-background-color: #333333;
+    -fx-text-fill: white;
+    -fx-padding: 5px;
+}
+
+/* Karakter Durumları */
+.character-alive {
+    -fx-text-fill: #2a9d8f;
+    -fx-font-weight: bold;
+}
+
+.character-dead {
+    -fx-text-fill: #e76f51;
+    -fx-strikethrough: true;
+}
+
+/* Sistem Mesajları */
+.system-message {
+    -fx-text-fill: #ff9933;
+    -fx-font-weight: bold;
+}
+
+.mafia-message {
+    -fx-text-fill: #cc0000;
+}
+
+.action-message {
+    -fx-text-fill: #990099;
+    -fx-font-style: italic;
+}

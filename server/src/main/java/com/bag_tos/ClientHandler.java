@@ -1,5 +1,7 @@
 package com.bag_tos;
 
+import com.bag_tos.roles.mafia.Mafya;
+
 import java.io.*;
 import java.net.Socket;
 

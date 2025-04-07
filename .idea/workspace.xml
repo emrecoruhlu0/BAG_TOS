@@ -5,14 +5,45 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientApplication.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/GameState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/Player.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/NetworkManager.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/util/AlertUtils.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/util/StyleUtils.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LobbyView.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LoginView.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ChatPanel.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerListView.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/application.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/dark-theme.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/light-theme.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/resources/fxml/game-view.fxml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/main/resources/fxml/lobby-view.fxml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README..md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/resources/com/bag_tos/hello-view.fxml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/client/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientLauncher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+        <option value="FxmlFile" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -28,13 +59,63 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.ClientApplication.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true"
   }
-}</component>
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\emrec\OneDrive\Masaüstü\Bilgisayar Ders\2. Sınıf\2. Dönem\Bilgisayar Ağlarına Giriş\BAG_TOS\client\src\main\resources\fxml" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Compound.4 tane">
+    <configuration name="client1" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client2" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client3" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client4" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="4 tane" type="CompoundRunConfigurationType">
+      <toRun name="client1" type="Application" />
+      <toRun name="client2" type="Application" />
+      <toRun name="client3" type="Application" />
+      <toRun name="client4" type="Application" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Application.client1" />
+      <item itemvalue="Application.client2" />
+      <item itemvalue="Application.client3" />
+      <item itemvalue="Application.client4" />
+      <item itemvalue="Compound.4 tane" />
+    </list>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

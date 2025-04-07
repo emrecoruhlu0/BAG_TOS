@@ -1,6 +1,10 @@
 package com.bag_tos;
 
 import com.bag_tos.roles.Role;
+import com.bag_tos.roles.mafia.Mafya;
+import com.bag_tos.roles.naturel.Jester;
+import com.bag_tos.roles.town.Doktor;
+import com.bag_tos.roles.town.Serif;
 
 import java.util.*;
 import java.util.concurrent.*;
