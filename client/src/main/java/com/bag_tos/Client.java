@@ -1,4 +1,4 @@
-package com.example.tos_client;
+package com.bag_tos;
 
 import java.io.*;
 import java.net.*;

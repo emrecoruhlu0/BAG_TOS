@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane  prefHeight="300.0" prefWidth="350.0"
+            style="-fx-padding: 20 30 20 30; -fx-background-color: #2C3E50;"
+            xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.bag_tos.LoginController">
+<center>
+    <VBox alignment="CENTER" spacing="20">
+        <TextField id="usernameField" promptText="Kullanıcı Adı"/>
+        <Button text="Oyuna Katıl" onAction="#joinGame"/>
+    </VBox>
+</center>
+</BorderPane>
