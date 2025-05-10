@@ -11,9 +11,6 @@ import java.net.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Sunucu ile JSON formatında iletişim kuran ağ yöneticisi
- */
 public class NetworkManager {
     private Socket socket;
     private PrintWriter out;
@@ -24,21 +21,11 @@ public class NetworkManager {
     private String serverAddress;
     private int serverPort;
 
-    /**
-     * Ağ yöneticisi oluşturur
-     */
     public NetworkManager() {
         this.executor = Executors.newSingleThreadExecutor();
         this.connected = false;
     }
 
-    /**
-     * Sunucuya bağlanır
-     *
-     * @param host Sunucu adresi
-     * @param port Sunucu portu
-     * @return Bağlantı başarılı mı
-     */
     public boolean connect(String host, int port) {
         try {
             this.serverAddress = host;
@@ -60,9 +47,6 @@ public class NetworkManager {
         }
     }
 
-    /**
-     * Sunucudan gelen mesajları dinlemeye başlar
-     */
     private void startListening() {
         executor.submit(() -> {
             try {
@@ -76,24 +60,15 @@ public class NetworkManager {
         });
     }
 
-    /**
-     * Gelen mesajı işler
-     */
     private void processIncomingMessage(String jsonMessage) {
         if (jsonMessage.trim().isEmpty()) {
             return; // Boş mesajları atla
         }
 
         try {
-            if (jsonMessage.startsWith("{")) {
-                // JSON mesajını ayrıştır
-                Message message = JsonUtils.parseMessage(jsonMessage);
-                if (message != null && messageListener != null) {
-                    messageListener.onMessageReceived(message);
-                }
-            } else {
-                // Geçersiz format, uyarı ver
-                System.err.println("Geçersiz mesaj formatı: " + jsonMessage);
+            Message message = JsonUtils.parseMessage(jsonMessage);
+            if (message != null && messageListener != null) {
+                messageListener.onMessageReceived(message);
             }
         } catch (Exception e) {
             System.err.println("Mesaj işleme hatası: " + e.getMessage());
@@ -101,9 +76,6 @@ public class NetworkManager {
         }
     }
 
-    /**
-     * Bağlantı hatasını işler
-     */
     private void handleConnectionError(Exception e) {
         if (connected) {
             System.err.println("Bağlantı kesildi: " + e.getMessage());
@@ -112,18 +84,9 @@ public class NetworkManager {
             if (messageListener != null) {
                 messageListener.onConnectionClosed();
             }
-
-            // Otomatik yeniden bağlanma eklenebilir
-            // attemptReconnect();
         }
     }
 
-    /**
-     * JSON mesajı gönderir
-     *
-     * @param message Gönderilecek mesaj
-     * @return Gönderim başarılı mı
-     */
     public boolean sendMessage(Message message) {
         if (out != null && connected) {
             try {
@@ -139,100 +102,57 @@ public class NetworkManager {
         return false;
     }
 
-    /**
-     * Kullanıcı adı gönderir (giriş işlemi)
-     *
-     * @param username Kullanıcı adı
-     */
-    public void sendUsername(String username) {
+    // Kullanıcı adı gönderimi için yardımcı metot
+    public void sendAuthMessage(String username) {
         Message message = new Message(MessageType.READY);
         message.addData("username", username);
-
         sendMessage(message);
     }
 
-    /**
-     * Hazır durumunu gönderir
-     *
-     * @param isReady Hazır mı
-     */
-    public void sendReady(boolean isReady) {
+    // Hazır durumu için yardımcı metot
+    public boolean sendReadyMessage(boolean isReady) {
         Message message = new Message(MessageType.READY);
-
         ReadyRequest readyRequest = new ReadyRequest(isReady);
         message.addData("readyRequest", readyRequest);
-
-        sendMessage(message);
+        return sendMessage(message);
     }
 
-    /**
-     * Oyun başlatma isteği gönderir
-     */
-    public void sendStartGame() {
+    // Oyun başlatma için yardımcı metot
+    public boolean sendStartGameMessage() {
         Message message = new Message(MessageType.START_GAME);
-
         StartGameRequest startRequest = new StartGameRequest();
         message.addData("startGameRequest", startRequest);
-
-        sendMessage(message);
+        return sendMessage(message);
     }
 
-    /**
-     * Oyun aksiyonu gönderir
-     *
-     * @param actionType Aksiyon tipi
-     * @param target Hedef oyuncu
-     */
-    public void sendAction(ActionType actionType, String target) {
+    // Aksiyon için yardımcı metot
+    public boolean sendActionMessage(ActionType actionType, String target) {
         Message message = new Message(MessageType.ACTION);
-
         ActionRequest actionRequest = new ActionRequest(actionType.name(), target);
         message.addData("actionRequest", actionRequest);
-
-        sendMessage(message);
+        return sendMessage(message);
     }
 
-    /**
-     * Oylama gönderir
-     *
-     * @param target Hedef oyuncu
-     */
-    public void sendVote(String target) {
+    // Oylama için yardımcı metot
+    public boolean sendVoteMessage(String target) {
         Message message = new Message(MessageType.VOTE);
-
         VoteRequest voteRequest = new VoteRequest(target);
         message.addData("voteRequest", voteRequest);
-
-        sendMessage(message);
+        return sendMessage(message);
     }
 
-    /**
-     * Sohbet mesajı gönderir
-     *
-     * @param text Mesaj metni
-     * @param room Oda (LOBBY, MAFIA)
-     */
-    public void sendChatMessage(String text, String room) {
+    // Sohbet için yardımcı metot
+    public boolean sendChatMessage(String text, String room) {
         Message message = new Message(MessageType.CHAT);
-
         ChatRequest chatRequest = new ChatRequest(text, room);
         message.addData("chatRequest", chatRequest);
-
-        sendMessage(message);
+        return sendMessage(message);
     }
 
-    /**
-     * Mesaj dinleyicisini ayarlar
-     *
-     * @param listener Dinleyici
-     */
     public void setMessageListener(MessageListener listener) {
         this.messageListener = listener;
     }
 
-    /**
-     * Bağlantıyı kapatır
-     */
     public void disconnect() {
         if (!connected) {
             return; // Zaten bağlı değil
@@ -251,9 +171,6 @@ public class NetworkManager {
         System.out.println("Sunucu bağlantısı kapatıldı.");
     }
 
-    /**
-     * Uygulama kapatıldığında kaynakları temizler
-     */
     public void shutdown() {
         disconnect();
 
@@ -262,47 +179,20 @@ public class NetworkManager {
         }
     }
 
-    /**
-     * Bağlantı durumunu döndürür
-     *
-     * @return Bağlantı durumu
-     */
     public boolean isConnected() {
         return connected && socket != null && !socket.isClosed();
     }
 
-    /**
-     * Sunucu adresini döndürür
-     *
-     * @return Sunucu adresi
-     */
     public String getServerAddress() {
         return serverAddress;
     }
 
-    /**
-     * Sunucu portunu döndürür
-     *
-     * @return Sunucu portu
-     */
     public int getServerPort() {
         return serverPort;
     }
 
-    /**
-     * Mesaj dinleyici arayüzü
-     */
     public interface MessageListener {
-        /**
-         * Mesaj alındığında çağrılır
-         *
-         * @param message Alınan mesaj
-         */
         void onMessageReceived(Message message);
-
-        /**
-         * Bağlantı kapandığında çağrılır
-         */
         void onConnectionClosed();
     }
 }

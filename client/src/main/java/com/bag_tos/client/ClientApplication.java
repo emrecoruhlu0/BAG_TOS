@@ -9,7 +9,8 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 /**
- * Town of Salem benzeri oyun için JavaFX tabanlı istemci uygulaması
+ * Town of Salem benzeri oyun için JavaFX tabanlı istemci uygulaması.
+ * Uygulamanın başlangıç noktasıdır.
  */
 public class ClientApplication extends Application {
     private GameState gameState;
@@ -24,21 +25,39 @@ public class ClientApplication extends Application {
 
             // Ana pencere ayarları
             primaryStage.setTitle("Town of Salem Clone");
-            primaryStage.setMinWidth(800);
-            primaryStage.setMinHeight(600);
+            primaryStage.setMinWidth(700);
+            primaryStage.setMinHeight(500);
 
             // Opsiyonel: Uygulama ikonu
-            // primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/logo.png")));
+            try {
+                if (getClass().getResource("/images/logo.png") != null) {
+                    primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/logo.png")));
+                }
+            } catch (Exception e) {
+                System.err.println("Logo yüklenirken hata: " + e.getMessage());
+            }
 
             // İlk ekranı göster (Login)
             LoginController loginController = new LoginController(primaryStage, gameState, networkManager);
             Scene scene = new Scene(loginController.getView(), 600, 400);
 
-            // CSS stil dosyasını ekle (opsiyonel)
-            // scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+            // CSS stil dosyasını ekle
+            try {
+                if (getClass().getResource("/css/application.css") != null) {
+                    scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+                }
+            } catch (Exception e) {
+                System.err.println("CSS dosyası yüklenirken hata: " + e.getMessage());
+            }
 
             primaryStage.setScene(scene);
             primaryStage.show();
+
+            // Pencere kapatılırken doğru şekilde temizlensin
+            primaryStage.setOnCloseRequest(event -> {
+                stop();
+            });
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -49,9 +68,18 @@ public class ClientApplication extends Application {
         // Uygulama kapandığında bağlantıyı kapat
         if (networkManager != null) {
             networkManager.disconnect();
+            networkManager.shutdown();
         }
+
+        // JVM'i düzgünce sonlandır
+        System.exit(0);
     }
 
+    /**
+     * Ana metot
+     *
+     * @param args Komut satırı argümanları
+     */
     public static void main(String[] args) {
         launch(args);
     }

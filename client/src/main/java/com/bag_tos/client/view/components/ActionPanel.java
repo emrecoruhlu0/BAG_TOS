@@ -1,6 +1,5 @@
 package com.bag_tos.client.view.components;
 
-import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.model.Player;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -56,7 +55,9 @@ public class ActionPanel extends VBox {
      */
     public void setTargetPlayers(List<Player> players) {
         targetPlayers.clear();
-        targetPlayers.addAll(players);
+        if (players != null) {
+            targetPlayers.addAll(players);
+        }
     }
 
     /**
@@ -66,9 +67,11 @@ public class ActionPanel extends VBox {
      */
     public void setAlivePlayers(List<Player> players) {
         targetPlayers.clear();
-        players.stream()
-                .filter(Player::isAlive)
-                .forEach(targetPlayers::add);
+        if (players != null) {
+            players.stream()
+                    .filter(Player::isAlive)
+                    .forEach(targetPlayers::add);
+        }
     }
 
     /**
@@ -93,6 +96,8 @@ public class ActionPanel extends VBox {
             Player selectedTarget = targetCombo.getValue();
             if (selectedTarget != null) {
                 handler.onAction(selectedTarget);
+                // Aksiyon sonrası UI state'ini güncelle
+                targetCombo.setValue(null);
             }
         });
 
@@ -122,6 +127,8 @@ public class ActionPanel extends VBox {
             Player selectedTarget = targetCombo.getValue();
             if (selectedTarget != null) {
                 handler.onAction(selectedTarget);
+                // Aksiyon sonrası UI state'ini güncelle
+                targetCombo.setValue(null);
             }
         });
 
@@ -151,6 +158,8 @@ public class ActionPanel extends VBox {
             Player selectedTarget = targetCombo.getValue();
             if (selectedTarget != null) {
                 handler.onAction(selectedTarget);
+                // Aksiyon sonrası UI state'ini güncelle
+                targetCombo.setValue(null);
             }
         });
 
@@ -180,6 +189,8 @@ public class ActionPanel extends VBox {
             Player selectedTarget = targetCombo.getValue();
             if (selectedTarget != null) {
                 handler.onAction(selectedTarget);
+                // Aksiyon sonrası UI state'ini güncelle
+                targetCombo.setValue(null);
             }
         });
 

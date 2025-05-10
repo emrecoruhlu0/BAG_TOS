@@ -14,11 +14,9 @@ import javafx.scene.text.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Lobi ekranı görünümü
- */
 public class LobbyView extends BorderPane {
     private Text titleText;
+    private Text readyCountText;
     private PlayerListView playerListView;
     private ChatPanel chatPanel;
     private Button readyButton;
@@ -26,18 +24,23 @@ public class LobbyView extends BorderPane {
 
     private List<Player> players = new ArrayList<>();
 
-    /**
-     * Lobi görünümü oluşturur
-     */
     public LobbyView() {
         setPadding(new Insets(10));
         getStyleClass().add("lobby-view");
 
         // Başlık
+        VBox topBox = new VBox(5);
+        topBox.setAlignment(Pos.CENTER);
+
         titleText = new Text("Lobi");
         titleText.setFont(Font.font("System", FontWeight.BOLD, 20));
-        BorderPane.setAlignment(titleText, Pos.CENTER);
-        BorderPane.setMargin(titleText, new Insets(10));
+
+        readyCountText = new Text("Hazır: 0/4");
+        readyCountText.setFont(Font.font("System", 14));
+
+        topBox.getChildren().addAll(titleText, readyCountText);
+        BorderPane.setAlignment(topBox, Pos.CENTER);
+        BorderPane.setMargin(topBox, new Insets(10));
 
         // Oyuncu listesi
         playerListView = new PlayerListView("Oyuncular");
@@ -52,17 +55,12 @@ public class LobbyView extends BorderPane {
         HBox buttonBox = createButtonBox();
 
         // Layout yerleşimi
-        setTop(titleText);
+        setTop(topBox);
         setLeft(playerListView);
         setCenter(chatPanel);
         setBottom(buttonBox);
     }
 
-    /**
-     * Butonları içeren HBox oluşturur
-     *
-     * @return Butonlar HBox'ı
-     */
     private HBox createButtonBox() {
         HBox buttonBox = new HBox(20);
         buttonBox.setPadding(new Insets(10));
@@ -80,78 +78,41 @@ public class LobbyView extends BorderPane {
         return buttonBox;
     }
 
-    /**
-     * Oyuncu listesini günceller
-     *
-     * @param newPlayers Güncellenecek oyuncu listesi
-     */
     public void updatePlayerList(List<Player> newPlayers) {
         this.players.clear();
         this.players.addAll(newPlayers);
         playerListView.updatePlayers(players);
     }
 
-    /**
-     * Sohbet alanına mesaj ekler
-     *
-     * @param message Eklenecek mesaj
-     */
     public void addChatMessage(String message) {
         chatPanel.addMessage(message);
     }
 
-    // Getter metodları
+    public void updateReadyCount(int count) {
+        readyCountText.setText("Hazır: " + count + "/4");
+    }
 
-    /**
-     * Oyuncu listesi görünümünü döndürür
-     *
-     * @return Oyuncu listesi görünümü
-     */
+    // Getter metodları
     public PlayerListView getPlayerListView() {
         return playerListView;
     }
 
-    /**
-     * Mesaj alanını döndürür
-     *
-     * @return Mesaj alanı
-     */
     public TextField getMessageField() {
         return chatPanel.getMessageField();
     }
 
-    /**
-     * Gönder butonunu döndürür
-     *
-     * @return Gönder butonu
-     */
     public Button getSendButton() {
         return chatPanel.getSendButton();
     }
 
-    /**
-     * Hazır butonunu döndürür
-     *
-     * @return Hazır butonu
-     */
     public Button getReadyButton() {
         return readyButton;
     }
 
-    /**
-     * Başlat butonunu döndürür
-     *
-     * @return Başlat butonu
-     */
     public Button getStartButton() {
         return startButton;
     }
 
-    /**
-     * Sohbet panelini döndürür
-     *
-     * @return Sohbet paneli
-     */
     public ChatPanel getChatPanel() {
         return chatPanel;
     }

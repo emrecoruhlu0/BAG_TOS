@@ -3,24 +3,44 @@ package com.bag_tos.client.model;
 import javafx.beans.property.*;
 
 /**
- * Oyuncuyu temsil eden model sınıfı
+ * İstemci tarafında bir oyuncuyu temsil eden model sınıfı.
+ * Sunucudan gelen oyuncu bilgilerinin istemci tarafında saklanmasını sağlar.
  */
 public class Player {
-    private StringProperty username = new SimpleStringProperty();
-    private StringProperty role = new SimpleStringProperty();
-    private BooleanProperty alive = new SimpleBooleanProperty(true);
+    private final StringProperty username = new SimpleStringProperty();
+    private final StringProperty role = new SimpleStringProperty();
+    private final BooleanProperty alive = new SimpleBooleanProperty(true);
 
     /**
-     * Oyuncu oluşturur
+     * Yeni bir oyuncu nesnesi oluşturur.
+     */
+    public Player() {
+    }
+
+    /**
+     * Belirtilen kullanıcı adı ile yeni bir oyuncu nesnesi oluşturur.
      *
-     * @param username Kullanıcı adı
+     * @param username Oyuncunun kullanıcı adı
      */
     public Player(String username) {
         this.username.set(username);
     }
 
     /**
-     * Kullanıcı adını döndürür
+     * Tüm bilgileri içeren bir oyuncu nesnesi oluşturur.
+     *
+     * @param username Oyuncunun kullanıcı adı
+     * @param role Oyuncunun rolü
+     * @param alive Oyuncunun hayatta olma durumu
+     */
+    public Player(String username, String role, boolean alive) {
+        this.username.set(username);
+        this.role.set(role);
+        this.alive.set(alive);
+    }
+
+    /**
+     * Kullanıcı adını döndürür.
      *
      * @return Kullanıcı adı
      */
@@ -29,7 +49,7 @@ public class Player {
     }
 
     /**
-     * Kullanıcı adı property'sini döndürür
+     * Kullanıcı adı property'sini döndürür (UI bağlama için).
      *
      * @return Kullanıcı adı property'si
      */
@@ -38,16 +58,16 @@ public class Player {
     }
 
     /**
-     * Kullanıcı adını ayarlar
+     * Kullanıcı adını ayarlar.
      *
-     * @param username Kullanıcı adı
+     * @param username Yeni kullanıcı adı
      */
     public void setUsername(String username) {
         this.username.set(username);
     }
 
     /**
-     * Rolü döndürür
+     * Rolü döndürür.
      *
      * @return Rol
      */
@@ -56,16 +76,7 @@ public class Player {
     }
 
     /**
-     * Rolü ayarlar
-     *
-     * @param role Rol
-     */
-    public void setRole(String role) {
-        this.role.set(role);
-    }
-
-    /**
-     * Rol property'sini döndürür
+     * Rol property'sini döndürür (UI bağlama için).
      *
      * @return Rol property'si
      */
@@ -74,7 +85,16 @@ public class Player {
     }
 
     /**
-     * Hayatta olma durumunu döndürür
+     * Rolü ayarlar.
+     *
+     * @param role Yeni rol
+     */
+    public void setRole(String role) {
+        this.role.set(role);
+    }
+
+    /**
+     * Hayatta olma durumunu döndürür.
      *
      * @return Hayatta mı?
      */
@@ -83,7 +103,16 @@ public class Player {
     }
 
     /**
-     * Hayatta olma durumunu ayarlar
+     * Hayatta olma property'sini döndürür (UI bağlama için).
+     *
+     * @return Hayatta olma property'si
+     */
+    public BooleanProperty aliveProperty() {
+        return alive;
+    }
+
+    /**
+     * Hayatta olma durumunu ayarlar.
      *
      * @param alive Hayatta mı?
      */
@@ -92,12 +121,33 @@ public class Player {
     }
 
     /**
-     * Hayatta olma property'sini döndürür
+     * Bu oyuncunun belirli bir roldeki mafya olup olmadığını kontrol eder.
      *
-     * @return Hayatta olma property'si
+     * @return Oyuncu mafya mı?
      */
-    public BooleanProperty aliveProperty() {
-        return alive;
+    public boolean isMafia() {
+        String currentRole = getRole();
+        return currentRole != null && currentRole.equals("Mafya");
+    }
+
+    /**
+     * Bu oyuncunun belirli bir roldeki şerif olup olmadığını kontrol eder.
+     *
+     * @return Oyuncu şerif mi?
+     */
+    public boolean isSheriff() {
+        String currentRole = getRole();
+        return currentRole != null && currentRole.equals("Serif");
+    }
+
+    /**
+     * Bu oyuncunun belirli bir roldeki doktor olup olmadığını kontrol eder.
+     *
+     * @return Oyuncu doktor mu?
+     */
+    public boolean isDoctor() {
+        String currentRole = getRole();
+        return currentRole != null && currentRole.equals("Doktor");
     }
 
     @Override
@@ -106,12 +156,12 @@ public class Player {
         if (obj == null || getClass() != obj.getClass()) return false;
 
         Player player = (Player) obj;
-        return getUsername().equals(player.getUsername());
+        return getUsername() != null && getUsername().equals(player.getUsername());
     }
 
     @Override
     public int hashCode() {
-        return getUsername().hashCode();
+        return getUsername() != null ? getUsername().hashCode() : 0;
     }
 
     @Override

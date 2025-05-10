@@ -16,6 +16,7 @@ public class ChatPanel extends VBox {
     private TextArea chatArea;
     private TextField messageField;
     private Button sendButton;
+    private MessageSendHandler sendHandler;
 
     /**
      * Varsayılan sohbet paneli oluşturur
@@ -52,6 +53,7 @@ public class ChatPanel extends VBox {
 
         sendButton = new Button("Gönder");
         sendButton.setDefaultButton(true);
+        sendButton.getStyleClass().add("primary-button");
 
         messageBox.getChildren().addAll(messageField, sendButton);
 
@@ -77,9 +79,11 @@ public class ChatPanel extends VBox {
      * @param message Eklenecek mesaj
      */
     public void addMessage(String message) {
-        chatArea.appendText(message + "\n");
-        // Otomatik kaydırma - en alt mesaja odaklanma
-        chatArea.setScrollTop(Double.MAX_VALUE);
+        if (message != null && !message.trim().isEmpty()) {
+            chatArea.appendText(message + "\n");
+            // Otomatik kaydırma - en alt mesaja odaklanma
+            chatArea.setScrollTop(Double.MAX_VALUE);
+        }
     }
 
     /**
@@ -113,14 +117,13 @@ public class ChatPanel extends VBox {
         if (!message.isEmpty() && sendHandler != null) {
             sendHandler.onSend(message);
             messageField.clear();
+            messageField.requestFocus(); // İmleç tekrar metin kutusuna odaklanır
         }
     }
 
     /**
      * Mesaj gönderme olayı için arayüz
      */
-    private MessageSendHandler sendHandler;
-
     public interface MessageSendHandler {
         void onSend(String message);
     }

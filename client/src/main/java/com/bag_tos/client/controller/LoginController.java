@@ -4,26 +4,18 @@ import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.network.NetworkManager;
 import com.bag_tos.client.network.MessageHandler;
 import com.bag_tos.client.view.LoginView;
+import com.bag_tos.common.message.Message;
+import com.bag_tos.common.message.MessageType;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-/**
- * Giriş ekranını kontrol eden sınıf
- */
 public class LoginController {
     private LoginView view;
     private GameState gameState;
     private NetworkManager networkManager;
     private Stage primaryStage;
 
-    /**
-     * Giriş kontrolcüsü oluşturur
-     *
-     * @param primaryStage Ana pencere
-     * @param gameState Oyun durumu
-     * @param networkManager Ağ yöneticisi
-     */
     public LoginController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
         this.gameState = gameState;
@@ -33,16 +25,10 @@ public class LoginController {
         configureView();
     }
 
-    /**
-     * Arayüz bileşenlerini yapılandırır
-     */
     private void configureView() {
         view.getConnectButton().setOnAction(e -> handleConnect());
     }
 
-    /**
-     * Bağlantı butonuna tıklandığında çağrılır
-     */
     private void handleConnect() {
         String username = view.getUsernameField().getText().trim();
         String server = view.getServerField().getText().trim();
@@ -62,22 +48,28 @@ public class LoginController {
             new Thread(() -> {
                 boolean connected = networkManager.connect(server, port);
 
-                // UI thread'inde sonucu göster
                 Platform.runLater(() -> {
                     if (connected) {
-                        // Kullanıcı adını sunucuya gönder
-                        networkManager.sendMessage(username);
+                        // Kullanıcı adını sunucuya gönder (JSON mesajı kullanarak)
+                        Message authMessage = new Message(MessageType.READY);
+                        authMessage.addData("username", username);
+                        networkManager.sendMessage(authMessage);
 
-                        // DOĞRU SIRA: Önce LobbyController oluştur, sonra MessageHandler'ı ona bağla
                         // Lobi ekranına geçiş yap ve LobbyController oluştur
                         LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
 
-                        // Şimdi yeni oluşturulan controller ile MessageHandler'ı yapılandır
+                        // MessageHandler'ı yapılandır
                         MessageHandler messageHandler = new MessageHandler(lobbyController, gameState);
                         networkManager.setMessageListener(messageHandler);
 
                         // Yeni Scene'i göster
-                        Scene scene = new Scene(lobbyController.getView(), 800, 600);
+                        Scene scene = new Scene(lobbyController.getView(), 700, 500);
+
+                        // CSS stil dosyasını ekle
+                        if (getClass().getResource("/css/application.css") != null) {
+                            scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+                        }
+
                         primaryStage.setScene(scene);
                     } else {
                         view.setStatusText("Bağlantı hatası! Lütfen tekrar deneyin.");
@@ -91,20 +83,6 @@ public class LoginController {
         }
     }
 
-    /**
-     * Lobi ekranına geçer
-     */
-    private void showLobbyScreen() {
-        LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
-        Scene scene = new Scene(lobbyController.getView(), 800, 600);
-        primaryStage.setScene(scene);
-    }
-
-    /**
-     * Görünümü döndürür
-     *
-     * @return Giriş görünümü
-     */
     public LoginView getView() {
         return view;
     }

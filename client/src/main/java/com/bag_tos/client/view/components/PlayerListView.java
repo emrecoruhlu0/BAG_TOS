@@ -21,6 +21,7 @@ public class PlayerListView extends VBox {
     private ListView<Player> playerListView;
     private Label titleLabel;
     private ObservableList<Player> players;
+    private PlayerSelectedHandler playerSelectedHandler;
 
     /**
      * Varsayılan oyuncu listesi bileşeni oluşturur
@@ -73,6 +74,15 @@ public class PlayerListView extends VBox {
             }
         });
 
+        // Oyuncu seçildiğinde işleyiciyi çağır
+        playerListView.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldValue, newValue) -> {
+                    if (newValue != null && playerSelectedHandler != null) {
+                        playerSelectedHandler.onSelect(newValue);
+                    }
+                }
+        );
+
         getChildren().addAll(titleLabel, playerListView);
     }
 
@@ -82,33 +92,10 @@ public class PlayerListView extends VBox {
      * @param playerList Güncellenecek oyuncu listesi
      */
     public void updatePlayers(List<Player> playerList) {
-        System.out.println("updatePlayers çağrıldı, oyuncu sayısı: " + playerList.size());
-        // Oyuncuları listele
-        for (Player p : playerList) {
-            System.out.println("Oyuncu: " + p.getUsername());
-        }
+        if (playerList == null) return;
+
         players.clear();
         players.addAll(playerList);
-    }
-
-    /**
-     * Oyuncu ekler
-     *
-     * @param player Eklenecek oyuncu
-     */
-    public void addPlayer(Player player) {
-        if (!players.contains(player)) {
-            players.add(player);
-        }
-    }
-
-    /**
-     * Oyuncu siler
-     *
-     * @param username Silinecek oyuncunun kullanıcı adı
-     */
-    public void removePlayer(String username) {
-        players.removeIf(p -> p.getUsername().equals(username));
     }
 
     /**
@@ -117,13 +104,7 @@ public class PlayerListView extends VBox {
      * @param handler Oyuncu seçim işleyicisi
      */
     public void setOnPlayerSelected(PlayerSelectedHandler handler) {
-        playerListView.getSelectionModel().selectedItemProperty().addListener(
-                (observable, oldValue, newValue) -> {
-                    if (newValue != null) {
-                        handler.onSelect(newValue);
-                    }
-                }
-        );
+        this.playerSelectedHandler = handler;
     }
 
     /**

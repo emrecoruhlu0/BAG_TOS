@@ -1,108 +1,236 @@
-/* Ana Uygulama Stili */
+/* Town of Salem Clone - Minimalist Stil Dosyası */
 
+/* ----- Temel Stiller ----- */
 .root {
-    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-font-family: 'Segoe UI', 'Roboto', sans-serif;
     -fx-font-size: 14px;
     -fx-background-color: #f5f5f5;
+    -fx-text-fill: #333333;
 }
 
-/* Buton Stilleri */
+/* ----- Renk Paleti ----- */
+* {
+    /* Ana renkler */
+    -primary-color: #3f51b5;
+    -primary-light: #757de8;
+    -primary-dark: #002984;
+
+    /* Vurgu renkleri */
+    -accent-color: #ff9800;
+    -accent-light: #ffc947;
+    -accent-dark: #c66900;
+
+    /* Durum renkleri */
+    -success-color: #4caf50;
+    -warning-color: #ff9800;
+    -danger-color: #f44336;
+    -info-color: #2196f3;
+
+    /* Arka plan renkleri */
+    -background-light: #ffffff;
+    -background-default: #f5f5f5;
+    -background-dark: #e0e0e0;
+
+    /* Metin renkleri */
+    -text-primary: #333333;
+    -text-secondary: #757575;
+    -text-disabled: #9e9e9e;
+    -text-on-primary: #ffffff;
+
+    /* Kenar renkleri */
+    -border-color: #e0e0e0;
+    -border-focus: #3f51b5;
+}
+
+/* ----- Buton Stilleri ----- */
 .button {
     -fx-padding: 8px 16px;
     -fx-background-radius: 4px;
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: #333333;
+    -fx-border-radius: 4px;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #d0d0d0;
+}
+
+.button:pressed {
+    -fx-background-color: #c0c0c0;
 }
 
 .primary-button {
-    -fx-background-color: #2a9d8f;
+    -fx-background-color: -primary-color;
     -fx-text-fill: white;
     -fx-font-weight: bold;
 }
 
 .primary-button:hover {
-    -fx-background-color: #1e7e78;
+    -fx-background-color: -primary-light;
+}
+
+.primary-button:pressed {
+    -fx-background-color: -primary-dark;
 }
 
 .secondary-button {
-    -fx-background-color: #e9c46a;
-    -fx-text-fill: #333333;
+    -fx-background-color: -accent-color;
+    -fx-text-fill: white;
 }
 
 .secondary-button:hover {
-    -fx-background-color: #dbb53e;
+    -fx-background-color: -accent-light;
+}
+
+.secondary-button:pressed {
+    -fx-background-color: -accent-dark;
 }
 
 .danger-button {
-    -fx-background-color: #e76f51;
+    -fx-background-color: -danger-color;
     -fx-text-fill: white;
 }
 
 .danger-button:hover {
-    -fx-background-color: #d05a3b;
+    -fx-background-color: derive(-danger-color, 10%);
 }
 
-/* Faz Stilleri */
-.night-phase {
-    -fx-background-color: #1a1a2e;
-    -fx-text-fill: #e0e0e0;
+.danger-button:pressed {
+    -fx-background-color: derive(-danger-color, -10%);
 }
 
-.day-phase {
-    -fx-background-color: #ffd166;
+/* ----- TextArea ve TextField Stilleri ----- */
+.text-area, .text-field {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-color: -border-color;
+    -fx-border-width: 1px;
     -fx-text-fill: #333333;
 }
 
-/* TextArea ve TextField Stilleri */
-.text-area, .text-field {
-    -fx-background-radius: 4px;
-    -fx-border-radius: 4px;
-    -fx-border-color: #cccccc;
-    -fx-border-width: 1px;
-}
-
 .text-area .content {
-    -fx-background-color: white;
+    -fx-background-color: #ffffff;
 }
 
 .text-area:focused, .text-field:focused {
-    -fx-border-color: #2a9d8f;
+    -fx-border-color: -primary-color;
 }
 
-/* Liste ve Tablo Stilleri */
+/* ----- Liste ve Tablo Stilleri ----- */
 .list-view, .table-view {
+    -fx-background-color: #ffffff;
     -fx-background-radius: 4px;
     -fx-border-radius: 4px;
-    -fx-border-color: #cccccc;
+    -fx-border-color: -border-color;
     -fx-border-width: 1px;
 }
 
 .list-cell, .table-row-cell {
     -fx-padding: 8px;
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #333333;
 }
 
 .list-cell:odd, .table-row-cell:odd {
-    -fx-background-color: #f9f9f9;
+    -fx-background-color: #f5f5f5;
 }
 
 .list-cell:selected, .table-row-cell:selected {
-    -fx-background-color: #2a9d8f;
+    -fx-background-color: -primary-color;
     -fx-text-fill: white;
 }
 
-/* Tab Stilleri */
+.list-cell:hover, .table-row-cell:hover {
+    -fx-background-color: #eeeeee;
+}
+
+/* ----- ComboBox Stilleri ----- */
+.combo-box {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1px;
+    -fx-text-fill: #333333;
+}
+
+.combo-box:focused {
+    -fx-border-color: #3f51b5;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #333333;
+    -fx-padding: 5px 10px;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: #ffffff;
+}
+
+.combo-box .arrow {
+    -fx-background-color: #333333;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1px;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: #f5f5f5;
+}
+
+.combo-box-popup .list-cell:selected {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: #333333;
+}
+
+/* ----- Tab Stilleri ----- */
 .tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: #f5f5f5;
     -fx-background-radius: 5 5 0 0;
-    -fx-padding: 10px 15px;
+    -fx-padding: 8px 12px;
 }
 
 .tab-pane > .tab-header-area > .headers-region > .tab:selected {
-    -fx-background-color: #2a9d8f;
+    -fx-background-color: -primary-color;
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:selected > .tab-container > .tab-label {
     -fx-text-fill: white;
 }
 
-/* Özel Komponenet Stilleri */
+.tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
+    -fx-text-fill: #333333;
+}
+
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: #e0e0e0;
+}
+
+.tab-pane > .tab-content-area {
+    -fx-background-color: #ffffff;
+    -fx-border-color: -border-color;
+    -fx-border-width: 1px 0 0 0;
+}
+
+/* ----- Özel Komponent Stilleri ----- */
+.chat-panel {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8px;
+    -fx-border-color: -border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 10px;
+}
+
 .chat-area {
-    -fx-background-color: white;
-    -fx-border-color: #cccccc;
+    -fx-background-color: #ffffff;
+    -fx-border-color: -border-color;
     -fx-border-width: 1px;
     -fx-border-radius: 4px;
     -fx-padding: 10px;
@@ -110,49 +238,84 @@
 
 .player-list {
     -fx-padding: 10px;
-    -fx-background-color: white;
-    -fx-border-color: #cccccc;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8px;
+    -fx-border-color: -border-color;
     -fx-border-width: 1px;
-    -fx-border-radius: 4px;
+    -fx-border-radius: 8px;
 }
 
 .action-panel {
-    -fx-background-color: #f0f0f0;
-    -fx-border-color: #cccccc;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8px;
+    -fx-border-color: -border-color;
     -fx-border-width: 1px;
-    -fx-border-radius: 4px;
+    -fx-border-radius: 8px;
     -fx-padding: 15px;
     -fx-spacing: 10px;
 }
 
 .status-bar {
-    -fx-background-color: #333333;
-    -fx-text-fill: white;
+    -fx-background-color: #f5f5f5;
+    -fx-text-fill: #333333;
     -fx-padding: 5px;
+    -fx-border-color: -border-color;
+    -fx-border-width: 1px 0 0 0;
 }
 
-/* Karakter Durumları */
+/* ----- Karakter Durumları ----- */
 .character-alive {
-    -fx-text-fill: #2a9d8f;
+    -fx-text-fill: -success-color;
     -fx-font-weight: bold;
 }
 
 .character-dead {
-    -fx-text-fill: #e76f51;
+    -fx-text-fill: -danger-color;
     -fx-strikethrough: true;
 }
 
-/* Sistem Mesajları */
+/* ----- Sistem Mesajları ----- */
 .system-message {
-    -fx-text-fill: #ff9933;
+    -fx-text-fill: -info-color;
     -fx-font-weight: bold;
 }
 
 .mafia-message {
-    -fx-text-fill: #cc0000;
+    -fx-text-fill: -danger-color;
 }
 
 .action-message {
-    -fx-text-fill: #990099;
+    -fx-text-fill: -accent-color;
     -fx-font-style: italic;
+}
+
+/* ----- Login Ekranı ----- */
+.login-view {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 20px;
+}
+
+.login-form {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8px;
+    -fx-border-color: -border-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 20px;
+}
+
+.login-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -primary-color;
+}
+
+/* ----- Oyun Ekranı ----- */
+.game-view {
+    -fx-background-color: -background-default;
+}
+
+/* ----- Lobi Ekranı ----- */
+.lobby-view {
+    -fx-background-color: -background-default;
 }

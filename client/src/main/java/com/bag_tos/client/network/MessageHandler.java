@@ -4,34 +4,29 @@ import com.bag_tos.client.controller.GameController;
 import com.bag_tos.client.controller.LobbyController;
 import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.model.Player;
+import com.bag_tos.common.message.Message;
+import com.bag_tos.common.message.MessageType;
+import com.bag_tos.common.message.response.*;
+import com.bag_tos.common.model.PlayerInfo;
+import com.bag_tos.common.util.JsonUtils;
 import javafx.application.Platform;
 
-/**
- * Sunucudan gelen mesajları işleyip ilgili kontrolcülere yönlendiren sınıf
- */
+import java.util.List;
+import java.util.Map;
+
 public class MessageHandler implements NetworkManager.MessageListener {
     private GameController gameController;
     private LobbyController lobbyController;
     private GameState gameState;
 
-    /**
-     * Oyun kontrolcüsü ile mesaj işleyici oluşturur
-     *
-     * @param gameController Oyun kontrolcüsü
-     * @param gameState Oyun durumu
-     */
+    // GameController için constructor
     public MessageHandler(GameController gameController, GameState gameState) {
         this.gameController = gameController;
         this.lobbyController = null;
         this.gameState = gameState;
     }
 
-    /**
-     * Lobi kontrolcüsü ile mesaj işleyici oluşturur
-     *
-     * @param lobbyController Lobi kontrolcüsü
-     * @param gameState Oyun durumu
-     */
+    // LobbyController için constructor
     public MessageHandler(LobbyController lobbyController, GameState gameState) {
         this.lobbyController = lobbyController;
         this.gameController = null;
@@ -39,210 +34,410 @@ public class MessageHandler implements NetworkManager.MessageListener {
     }
 
     @Override
-    public void onMessageReceived(String message) {
-        // Mesaj tipine göre ayrıştırma ve işleme
-        if (message.startsWith("SISTEM:")) {
-            handleSystemMessage(message);
-        } else if (message.startsWith("[GECE]") || message.startsWith("[GÜNDÜZ]")) {
-            handlePhaseMessage(message);
-        } else if (message.startsWith("AKSIYON:")) {
-            handleActionMessage(message);
-        } else if (message.startsWith("🔮")) {
-            handleMafiaMessage(message);
-        } else if (message.contains("ROL:")) {
-            handleRoleAssignment(message);
-        } else if (message.contains("LOBBY")) {
-            handlePlayerJoin(message);
-        } else if (message.contains("OLDURULDUN")) {
-            handlePlayerDeath(message);
-        } else if (message.contains("ASILDIN")) {
-            handlePlayerHanged(message);
-        } else if (message.contains("OYUN BİTTİ")) {
-            handleGameEnd(message);
-        } else {
-            handleChatMessage(message);
+    public void onMessageReceived(Message message) {
+        if (message == null) {
+            System.err.println("Boş mesaj alındı!");
+            return;
         }
 
-        // UI Thread'de arayüzü güncelle
+        try {
+            // Mesaj tipine göre işlem yap
+            switch (message.getType()) {
+                case GAME_STATE:
+                    handleGameStateMessage(message);
+                    break;
+                case PLAYER_JOIN:
+                    handlePlayerJoinMessage(message);
+                    break;
+                case PLAYER_LEAVE:
+                    handlePlayerLeaveMessage(message);
+                    break;
+                case ROLE_ASSIGNMENT:
+                    handleRoleAssignmentMessage(message);
+                    break;
+                case AVAILABLE_ACTIONS:
+                    handleAvailableActionsMessage(message);
+                    break;
+                case ACTION_RESULT:
+                    handleActionResultMessage(message);
+                    break;
+                case CHAT_MESSAGE:
+                    handleChatMessage(message);
+                    break;
+                case ERROR:
+                    handleErrorMessage(message);
+                    break;
+                default:
+                    System.out.println("Bilinmeyen mesaj tipi: " + message.getType());
+            }
+        } catch (Exception e) {
+            System.err.println("Mesaj işlenirken hata oluştu: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // UI güncellemelerini yap
         updateUI();
     }
 
-    @Override
-    public void onConnectionClosed() {
-        if (gameController != null) {
-            gameController.handleDisconnect();
-        } else if (lobbyController != null && lobbyController.getView() != null) {
-            lobbyController.handleDisconnect();
-        }
-    }
-
-    /**
-     * Sistem mesajlarını işler
-     *
-     * @param message Sistem mesajı
-     */
-    private void handleSystemMessage(String message) {
-        gameState.addSystemMessage(message);
-
-        if (gameController != null) {
-            gameController.handleSystemMessage(message);
-        } else if (lobbyController != null && lobbyController.getView() != null) {
-            lobbyController.addChatMessage(message);
-        }
-
-        // Oyun başlama kontrolü
-        if (message.contains("Oyun basliyor")) {
-            if (lobbyController != null && lobbyController.getView() != null) {
-                Platform.runLater(() -> lobbyController.startGame());
-            }
-        }
-    }
-
-    /**
-     * Faz değişikliği mesajlarını işler
-     *
-     * @param message Faz mesajı
-     */
-    private void handlePhaseMessage(String message) {
-        if (message.contains("[GECE]")) {
-            gameState.setCurrentPhase(GameState.Phase.NIGHT);
-        } else {
-            gameState.setCurrentPhase(GameState.Phase.DAY);
-        }
-        gameState.addSystemMessage(message);
-
-        if (gameController != null) {
-            gameController.handleSystemMessage(message);
-        }
-    }
-
-    /**
-     * Aksiyon mesajlarını işler
-     *
-     * @param message Aksiyon mesajı
-     */
-    private void handleActionMessage(String message) {
-        gameState.setAvailableAction(message.substring(9));
-        gameState.addSystemMessage(message);
-
-        if (gameController != null) {
-            gameController.handleSystemMessage(message);
-        }
-    }
-
-    /**
-     * Mafya mesajlarını işler
-     *
-     * @param message Mafya mesajı
-     */
-    private void handleMafiaMessage(String message) {
-        gameState.addMafiaMessage(message);
-
-        if (gameController != null) {
-            gameController.handleMafiaMessage(message);
-        }
-    }
-
-    /**
-     * Rol atama mesajlarını işler
-     *
-     * @param message Rol mesajı
-     */
-    private void handleRoleAssignment(String message) {
-        // "ROL: Mafya" gibi mesajlardan rolü ayıkla
-        if (message.contains("ROL:")) {
-            String role = message.split("ROL:")[1].trim();
-            gameState.setCurrentRole(role);
-            gameState.addSystemMessage("Rolünüz: " + role);
-
-            if (gameController != null) {
-                gameController.handleSystemMessage("Rolünüz: " + role);
-            }
-        }
-    }
-
-    /**
-     * Oyuncu katılımını işler
-     *
-     * @param message Katılım mesajı
-     */
-    private void handlePlayerJoin(String message) {
-        // "SISTEM: username lobiye katildi! (2/4)" formatındaki mesajı işle
+    private void handleGameStateMessage(Message message) {
         try {
-            String username = message.split(" ")[1];
-            Player player = new Player(username);
-            gameState.addPlayer(player);
-            System.out.println("Yeni oyuncu eklendi: " + username);
-
-            if (lobbyController != null) {
-                lobbyController.updatePlayerList();
+            // GameState bilgisini al
+            GameStateResponse gameStateResponse = null;
+            if (message.getDataValue("gameState") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("gameState"));
+                gameStateResponse = JsonUtils.fromJson(jsonStr, GameStateResponse.class);
             }
+
+            // Faz bilgisini güncelle
+            String phase = (String) message.getDataValue("phase");
+            if (phase != null) {
+                switch (phase) {
+                    case "NIGHT":
+                        gameState.setCurrentPhase(GameState.Phase.NIGHT);
+                        break;
+                    case "DAY":
+                        gameState.setCurrentPhase(GameState.Phase.DAY);
+                        break;
+                    case "LOBBY":
+                    default:
+                        gameState.setCurrentPhase(GameState.Phase.LOBBY);
+                        break;
+                }
+            }
+
+            // Zamanı güncelle
+            if (message.getDataValue("remainingTime") != null) {
+                Integer time = (Integer) message.getDataValue("remainingTime");
+                gameState.setRemainingTime(time);
+            }
+
+            // Oyuncu listesini güncelle
+            if (gameStateResponse != null && gameStateResponse.getPlayers() != null) {
+                updatePlayerList(gameStateResponse.getPlayers());
+            } else if (message.getDataValue("players") != null) {
+                List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
+                for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
+                    String username = (String) playerInfoRaw.get("username");
+                    Boolean alive = (Boolean) playerInfoRaw.get("alive");
+                    String role = (String) playerInfoRaw.get("role");
+
+                    Player player = findOrCreatePlayer(username);
+                    if (alive != null) player.setAlive(alive);
+                    if (role != null && !role.equals("UNKNOWN")) player.setRole(role);
+                }
+            }
+
+            // Özel olayları kontrol et
+            String event = (String) message.getDataValue("event");
+            if (event != null) {
+                handleGameEvent(event, message);
+            }
+
+            // Sistem mesajını ekle
+            String messageText = (String) message.getDataValue("message");
+            if (messageText != null) {
+                gameState.addSystemMessage(messageText);
+                if (gameController != null) {
+                    gameController.handleSystemMessage(messageText);
+                } else if (lobbyController != null) {
+                    lobbyController.addChatMessage(messageText);
+                }
+            }
+
+            // Oyun durumunu kontrol et
+            String state = (String) message.getDataValue("state");
+            if (state != null && state.equals("GAME_STARTING") && lobbyController != null) {
+                lobbyController.startGame();
+            }
+
+            // Oyun sonu kontrolü
+            Boolean gameOver = (Boolean) message.getDataValue("gameOver");
+            if (gameOver != null && gameOver && gameController != null) {
+                String winnerMessage = (String) message.getDataValue("message");
+                gameController.handleGameEnd(winnerMessage);
+            }
+
         } catch (Exception e) {
-            System.err.println("Oyuncu katılımı işlenirken hata: " + e.getMessage());
+            System.err.println("Oyun durumu mesajı işlenirken hata: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    /**
-     * Oyuncu ölümünü işler
-     *
-     * @param message Ölüm mesajı
-     */
-    private void handlePlayerDeath(String message) {
-        gameState.setAlive(false);
-
-        if (gameController != null) {
-            gameController.handleSystemMessage("Öldürüldünüz!");
+    private void handleGameEvent(String event, Message message) {
+        switch (event) {
+            case "PLAYER_KILLED":
+                String target = (String) message.getDataValue("target");
+                updatePlayerStatus(target, false);
+                break;
+            case "PLAYER_EXECUTED":
+                String executed = (String) message.getDataValue("target");
+                updatePlayerStatus(executed, false);
+                break;
+            case "PLAYER_PROTECTED":
+                // Korunan oyuncu
+                String protected_player = (String) message.getDataValue("target");
+                gameState.addSystemMessage(protected_player + " korundu!");
+                break;
+            case "NO_EXECUTION":
+                // Kimse asılmadı
+                gameState.addSystemMessage("Bugün kimse asılmadı.");
+                break;
+            // Diğer olaylar için ek işleme mantığı eklenebilir
         }
     }
 
-    /**
-     * Oyuncu asılmasını işler
-     *
-     * @param message Asılma mesajı
-     */
-    private void handlePlayerHanged(String message) {
-        gameState.setAlive(false);
+    private void handlePlayerJoinMessage(Message message) {
+        try {
+            String username = null;
 
-        if (gameController != null) {
-            gameController.handleSystemMessage("Asıldınız!");
+            // PlayerJoinResponse'dan değerleri çıkar
+            if (message.getDataValue("playerJoin") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("playerJoin"));
+                PlayerJoinResponse response = JsonUtils.fromJson(jsonStr, PlayerJoinResponse.class);
+                username = response.getUsername();
+            } else if (message.getDataValue("username") != null) {
+                username = (String) message.getDataValue("username");
+            }
+
+            if (username != null) {
+                // Oyuncuyu ekle
+                Player player = new Player(username);
+                gameState.addPlayer(player);
+
+                // Mesajı göster
+                String joinMessage = username + " lobiye katıldı!";
+                gameState.addSystemMessage(joinMessage);
+
+                if (lobbyController != null) {
+                    lobbyController.updatePlayerList();
+                    lobbyController.addChatMessage(joinMessage);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Oyuncu katılım mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    /**
-     * Oyun sonu mesajını işler
-     *
-     * @param message Oyun sonu mesajı
-     */
-    private void handleGameEnd(String message) {
-        if (gameController != null) {
-            gameController.handleGameEnd(message);
+    private void handlePlayerLeaveMessage(Message message) {
+        try {
+            String username = null;
+
+            if (message.getDataValue("playerLeave") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("playerLeave"));
+                PlayerLeaveResponse response = JsonUtils.fromJson(jsonStr, PlayerLeaveResponse.class);
+                username = response.getUsername();
+            } else if (message.getDataValue("username") != null) {
+                username = (String) message.getDataValue("username");
+            }
+
+            if (username != null) {
+                // Oyuncuyu kaldır
+                gameState.removePlayer(username);
+
+                // Mesajı göster
+                String leaveMessage = username + " lobiden ayrıldı!";
+                gameState.addSystemMessage(leaveMessage);
+
+                if (lobbyController != null) {
+                    lobbyController.updatePlayerList();
+                    lobbyController.addChatMessage(leaveMessage);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Oyuncu ayrılış mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    /**
-     * Genel sohbet mesajlarını işler
-     *
-     * @param message Sohbet mesajı
-     */
-    private void handleChatMessage(String message) {
-        gameState.addChatMessage(message);
+    private void handleRoleAssignmentMessage(Message message) {
+        try {
+            String role = null;
 
-        if (gameController != null) {
-            gameController.handleChatMessage(message);
-        } else if (lobbyController != null && lobbyController.getView() != null) {
-            lobbyController.addChatMessage(message);
+            if (message.getDataValue("roleAssignment") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("roleAssignment"));
+                RoleAssignmentResponse response = JsonUtils.fromJson(jsonStr, RoleAssignmentResponse.class);
+                role = response.getRole();
+            } else if (message.getDataValue("role") != null) {
+                role = (String) message.getDataValue("role");
+            }
+
+            if (role != null) {
+                // Rolü ayarla
+                gameState.setCurrentRole(role);
+
+                // Mesajı göster
+                String roleMessage = "Rolünüz: " + role;
+                gameState.addSystemMessage(roleMessage);
+
+                if (gameController != null) {
+                    gameController.handleSystemMessage(roleMessage);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Rol atama mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    /**
-     * Arayüzü günceller
-     */
+    private void handleAvailableActionsMessage(Message message) {
+        try {
+            // Kullanılabilir aksiyonları al
+            List<String> actions = (List<String>) message.getDataValue("availableActions");
+            if (actions != null && !actions.isEmpty()) {
+                String availableAction = String.join(", ", actions);
+                gameState.setAvailableAction(availableAction);
+
+                String actionMessage = "Kullanılabilir aksiyonlar: " + availableAction;
+                gameState.addSystemMessage(actionMessage);
+
+                if (gameController != null) {
+                    gameController.handleSystemMessage(actionMessage);
+                    gameController.updateActions(actions);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Kullanılabilir aksiyonlar mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void handleActionResultMessage(Message message) {
+        try {
+            if (message.getDataValue("actionResult") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("actionResult"));
+                ActionResultResponse response = JsonUtils.fromJson(jsonStr, ActionResultResponse.class);
+
+                if (response != null) {
+                    String actionMessage = "Aksiyon sonucu: " + response.getMessage();
+                    gameState.addSystemMessage(actionMessage);
+
+                    if (gameController != null) {
+                        gameController.handleSystemMessage(actionMessage);
+                    }
+
+                    // Öldürüldüyse durumu güncelle
+                    if ("KILLED".equals(response.getResult()) || "EXECUTED".equals(response.getResult())) {
+                        if (response.getTarget() != null) {
+                            updatePlayerStatus(response.getTarget(), false);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Aksiyon sonucu mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void handleChatMessage(Message message) {
+        try {
+            if (message.getDataValue("chatMessage") != null) {
+                String jsonStr = JsonUtils.toJson(message.getDataValue("chatMessage"));
+                ChatMessageResponse response = JsonUtils.fromJson(jsonStr, ChatMessageResponse.class);
+
+                if (response != null) {
+                    String sender = response.getSender();
+                    String content = response.getMessage();
+                    String room = response.getRoom();
+
+                    String chatMessage = sender + ": " + content;
+
+                    if ("MAFIA".equals(room)) {
+                        // Mafya mesajı
+                        gameState.addMafiaMessage(chatMessage);
+                        if (gameController != null) {
+                            gameController.handleMafiaMessage(chatMessage);
+                        }
+                    } else {
+                        // Genel mesaj
+                        gameState.addChatMessage(chatMessage);
+                        if (gameController != null) {
+                            gameController.handleChatMessage(chatMessage);
+                        } else if (lobbyController != null) {
+                            lobbyController.addChatMessage(chatMessage);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Sohbet mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void handleErrorMessage(Message message) {
+        try {
+            String code = (String) message.getDataValue("code");
+            String errorMessage = (String) message.getDataValue("message");
+
+            String fullError = "HATA: " + (code != null ? code + " - " : "") + errorMessage;
+            gameState.addSystemMessage(fullError);
+
+            if (gameController != null) {
+                gameController.handleSystemMessage(fullError);
+            } else if (lobbyController != null) {
+                lobbyController.addChatMessage(fullError);
+            }
+        } catch (Exception e) {
+            System.err.println("Hata mesajı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void updatePlayerList(List<PlayerInfo> playerInfos) {
+        if (playerInfos == null) return;
+
+        for (PlayerInfo info : playerInfos) {
+            Player player = findOrCreatePlayer(info.getUsername());
+            player.setAlive(info.isAlive());
+            if (info.getRole() != null && !info.getRole().equals("UNKNOWN")) {
+                player.setRole(info.getRole());
+            }
+        }
+    }
+
+    private Player findOrCreatePlayer(String username) {
+        // Mevcut oyuncuları kontrol et
+        for (Player p : gameState.getPlayers()) {
+            if (p.getUsername().equals(username)) {
+                return p;
+            }
+        }
+
+        // Oyuncu bulunamadıysa yeni oluştur
+        Player newPlayer = new Player(username);
+        gameState.addPlayer(newPlayer);
+        return newPlayer;
+    }
+
+    private void updatePlayerStatus(String username, boolean alive) {
+        for (Player p : gameState.getPlayers()) {
+            if (p.getUsername().equals(username)) {
+                p.setAlive(alive);
+                break;
+            }
+        }
+    }
+
     private void updateUI() {
-        if (gameController != null) {
-            gameController.updateUI();
-        } else if (lobbyController != null && lobbyController.getView() != null) {
-            lobbyController.updatePlayerList();
-        }
+        Platform.runLater(() -> {
+            if (gameController != null) {
+                gameController.updateUI();
+            } else if (lobbyController != null) {
+                lobbyController.updatePlayerList();
+            }
+        });
+    }
+
+    @Override
+    public void onConnectionClosed() {
+        Platform.runLater(() -> {
+            if (gameController != null) {
+                gameController.handleDisconnect();
+            } else if (lobbyController != null) {
+                lobbyController.handleDisconnect();
+            }
+        });
     }
 }

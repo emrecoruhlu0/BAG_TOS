@@ -5,58 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
-      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/event/EventBus.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/event/GameEvent.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/Message.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/MessageType.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/request/ActionRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/request/ChatRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/request/ReadyRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/request/StartGameRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/request/VoteRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/ActionResultResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/ChatMessageResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/ErrorResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/GameStateResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/PlayerJoinResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/PlayerLeaveResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/response/RoleAssignmentResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/model/ActionType.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/model/GamePhase.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/model/PlayerInfo.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/model/RoleType.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/util/JsonUtils.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/config/GameConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/client/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientLauncher.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientLauncher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/GameState.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/GameState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/Player.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/Player.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/NetworkManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/NetworkManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/util/StyleUtils.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LobbyView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LobbyView.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ChatPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ChatPanel.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerListView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerListView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/resources/css/dark-theme.css" beforeDir="false" afterPath="$PROJECT_DIR$/common/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/resources/css/light-theme.css" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/resources/fxml/game-view.fxml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/resources/fxml/lobby-view.fxml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/server/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientUI/ClientUIController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/MessageUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Server.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/Role.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/Role.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/mafia/Mafya.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/mafia/Mafya.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/naturel/Jester.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/naturel/Jester.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/town/Doktor.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/town/Doktor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/town/Serif.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/roles/town/Serif.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/resources/css/application.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/resources/css/application.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,7 +82,7 @@
       <recent name="C:\Users\emrec\OneDrive\Masaüstü\Bilgisayar Ders\2. Sınıf\2. Dönem\Bilgisayar Ağlarına Giriş\BAG_TOS\client\src\main\resources\fxml" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Server">
+  <component name="RunManager" selected="Compound.4 tane">
     <configuration name="Server" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="com.bag_tos.Server" />
       <module name="BAG_TOS_Server" />
@@ -156,6 +119,7 @@
       </method>
     </configuration>
     <configuration name="4 tane" type="CompoundRunConfigurationType">
+      <toRun name="Server" type="Application" />
       <toRun name="client1" type="Application" />
       <toRun name="client2" type="Application" />
       <toRun name="client3" type="Application" />
@@ -185,52 +149,10 @@
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint enabled="true" type="java-method">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java</url>
-          <line>168</line>
-          <properties class="com.bag_tos.client.network.MessageHandler" method="handlePlayerJoin">
-            <option name="EMULATED" value="true" />
-            <option name="WATCH_EXIT" value="false" />
-          </properties>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-method">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java</url>
-          <line>45</line>
-          <properties class="com.bag_tos.client.controller.LoginController" method="handleConnect">
-            <option name="EMULATED" value="true" />
-            <option name="WATCH_EXIT" value="false" />
-          </properties>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-method">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java</url>
-          <line>81</line>
-          <properties class="com.bag_tos.client.controller.LobbyController" method="updatePlayerList">
-            <option name="EMULATED" value="true" />
-            <option name="WATCH_EXIT" value="false" />
-          </properties>
-          <option name="timeStamp" value="9" />
-        </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java</url>
-          <line>178</line>
+          <line>325</line>
           <option name="timeStamp" value="3" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java</url>
-          <line>84</line>
-          <option name="timeStamp" value="6" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java</url>
-          <line>66</line>
-          <option name="timeStamp" value="7" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java</url>
-          <line>80</line>
-          <option name="timeStamp" value="10" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

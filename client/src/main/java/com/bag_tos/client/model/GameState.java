@@ -3,16 +3,27 @@ package com.bag_tos.client.model;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Oyun durumunu temsil eden model sınıfı
+ * İstemci tarafında oyun durumunu temsil eden model sınıfı.
+ * Sunucudan gelen verilerin yerel bir kopyasını tutar ve UI bileşenlerinin güncellemelerine kaynak sağlar.
  */
 public class GameState {
+
     /**
      * Oyun fazları
      */
-    public enum Phase { DAY, NIGHT, LOBBY }
+    public enum Phase {
+        DAY,   // Gündüz fazı
+        NIGHT, // Gece fazı
+        LOBBY  // Lobi fazı
+    }
 
+    // --- UI'ı otomatik güncellemek için property'ler ---
     private ObjectProperty<Phase> currentPhase = new SimpleObjectProperty<>(Phase.LOBBY);
     private StringProperty currentRole = new SimpleStringProperty("");
     private ObservableList<Player> players = FXCollections.observableArrayList();
@@ -23,24 +34,49 @@ public class GameState {
     private BooleanProperty alive = new SimpleBooleanProperty(true);
     private IntegerProperty remainingTime = new SimpleIntegerProperty(0);
 
+    // Sunucudan gelen ek bilgileri saklamak için genel bir yapı
+    private Map<String, Object> clientData = new HashMap<>();
+
     /**
-     * Oyuncu ekler
+     * Oyuncu ekler veya günceller
      *
-     * @param player Eklenecek oyuncu
+     * @param player Eklenecek/güncellenecek oyuncu
      */
-    public void addPlayer(Player player) {
-        // Aynı kullanıcı adına sahip oyuncu varsa ekleme
-        if (players.stream().noneMatch(p -> p.getUsername().equals(player.getUsername()))) {
-            players.add(player);
-            System.out.println("GameState: Oyuncu eklendi: " + player.getUsername() +
-                    ", Toplam oyuncu sayısı: " + players.size());
-        } else {
-            System.out.println("GameState: Oyuncu zaten listede: " + player.getUsername());
+    public void addOrUpdatePlayer(Player player) {
+        if (player == null) return;
+
+        // Önce mevcut oyuncuyu bul
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getUsername().equals(player.getUsername())) {
+                // Oyuncu zaten var, bilgilerini güncelle
+                Player existingPlayer = players.get(i);
+                existingPlayer.setAlive(player.isAlive());
+
+                // Rol bilgisi sadece "UNKNOWN" değilse güncelle
+                if (player.getRole() != null && !player.getRole().equals("UNKNOWN")) {
+                    existingPlayer.setRole(player.getRole());
+                }
+                return;
+            }
         }
+
+        // Oyuncu bulunamadı, yeni ekle
+        players.add(player);
     }
 
     /**
-     * Oyuncuyu siler
+     * Oyuncu ekler (eski API uyumluluğu için)
+     * Bu metot artık addOrUpdatePlayer() metoduna yönlendiriliyor.
+     *
+     * @param player Eklenecek oyuncu
+     * @see #addOrUpdatePlayer(Player)
+     */
+    public void addPlayer(Player player) {
+        addOrUpdatePlayer(player);
+    }
+
+    /**
+     * Oyuncu siler
      *
      * @param username Silinecek oyuncunun kullanıcı adı
      */
@@ -55,28 +91,55 @@ public class GameState {
      * @param alive Hayatta mı?
      */
     public void updatePlayerStatus(String username, boolean alive) {
-        players.stream()
-                .filter(p -> p.getUsername().equals(username))
-                .findFirst()
-                .ifPresent(p -> p.setAlive(alive));
+        for (Player player : players) {
+            if (player.getUsername().equals(username)) {
+                player.setAlive(alive);
+                break;
+            }
+        }
     }
 
     /**
-     * Sohbet mesajı ekler
+     * Belirtilen kullanıcı adına sahip oyuncu nesnesini döndürür
+     *
+     * @param username Oyuncu kullanıcı adı
+     * @return Oyuncu nesnesi, bulunamazsa null
+     */
+    public Player getPlayerByUsername(String username) {
+        for (Player player : players) {
+            if (player.getUsername().equals(username)) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Genel sohbet mesajı ekler
      *
      * @param message Eklenecek mesaj
      */
     public void addChatMessage(String message) {
         chatMessages.add(message);
+
+        // Mesaj listesinin boyutu çok büyükse, eski mesajları temizle
+        if (chatMessages.size() > 100) {
+            chatMessages.remove(0, chatMessages.size() - 100);
+        }
     }
 
     /**
-     * Mafya mesajı ekler
+     * Mafya sohbet mesajı ekler
      *
      * @param message Eklenecek mesaj
      */
     public void addMafiaMessage(String message) {
         mafiaMessages.add(message);
+
+        // Mesaj listesinin boyutu çok büyükse, eski mesajları temizle
+        if (mafiaMessages.size() > 100) {
+            mafiaMessages.remove(0, mafiaMessages.size() - 100);
+        }
     }
 
     /**
@@ -86,6 +149,11 @@ public class GameState {
      */
     public void addSystemMessage(String message) {
         systemMessages.add(message);
+
+        // Mesaj listesinin boyutu çok büyükse, eski mesajları temizle
+        if (systemMessages.size() > 100) {
+            systemMessages.remove(0, systemMessages.size() - 100);
+        }
     }
 
     /**
@@ -107,7 +175,7 @@ public class GameState {
     }
 
     /**
-     * Mevcut faz property'sini döndürür
+     * Mevcut faz property'sini döndürür (UI bağlama için)
      *
      * @return Mevcut faz property'si
      */
@@ -134,7 +202,7 @@ public class GameState {
     }
 
     /**
-     * Mevcut rol property'sini döndürür
+     * Mevcut rol property'sini döndürür (UI bağlama için)
      *
      * @return Mevcut rol property'si
      */
@@ -147,9 +215,7 @@ public class GameState {
      *
      * @return Oyuncular listesi
      */
-    // Koleksiyonu döndüren metodda da log ekleyin
     public ObservableList<Player> getPlayers() {
-        System.out.println("GameState: getPlayers çağrıldı, oyuncu sayısı: " + players.size());
         return players;
     }
 
@@ -199,7 +265,7 @@ public class GameState {
     }
 
     /**
-     * Mevcut aksiyon property'sini döndürür
+     * Mevcut aksiyon property'sini döndürür (UI bağlama için)
      *
      * @return Mevcut aksiyon property'si
      */
@@ -226,7 +292,7 @@ public class GameState {
     }
 
     /**
-     * Hayatta olma property'sini döndürür
+     * Hayatta olma property'sini döndürür (UI bağlama için)
      *
      * @return Hayatta olma property'si
      */
@@ -253,12 +319,32 @@ public class GameState {
     }
 
     /**
-     * Kalan süre property'sini döndürür
+     * Kalan süre property'sini döndürür (UI bağlama için)
      *
      * @return Kalan süre property'si
      */
     public IntegerProperty remainingTimeProperty() {
         return remainingTime;
+    }
+
+    /**
+     * Genel client verisi ekler
+     *
+     * @param key Veri anahtarı
+     * @param value Veri değeri
+     */
+    public void setData(String key, Object value) {
+        clientData.put(key, value);
+    }
+
+    /**
+     * Genel client verisini döndürür
+     *
+     * @param key Veri anahtarı
+     * @return Veri değeri, yoksa null
+     */
+    public Object getData(String key) {
+        return clientData.get(key);
     }
 
     /**
@@ -274,5 +360,6 @@ public class GameState {
         availableAction.set("");
         alive.set(true);
         remainingTime.set(0);
+        clientData.clear();
     }
 }
