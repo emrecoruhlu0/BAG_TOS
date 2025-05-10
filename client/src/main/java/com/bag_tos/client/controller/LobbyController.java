@@ -11,6 +11,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
+import java.util.List;
+
 /**
  * Lobi ekranını kontrol eden sınıf
  */
@@ -79,7 +81,12 @@ public class LobbyController {
      */
     public void updatePlayerList() {
         Platform.runLater(() -> {
-            view.updatePlayerList(gameState.getPlayers());
+            // GameState'den oyuncuları al
+            List<Player> currentPlayers = gameState.getPlayers();
+            System.out.println("updatePlayerList çağrıldı, oyuncu sayısı: " + currentPlayers.size());
+
+            // LobbyView'a aktar
+            view.updatePlayerList(currentPlayers);
         });
     }
 

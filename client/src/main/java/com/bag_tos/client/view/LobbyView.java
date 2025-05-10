@@ -11,6 +11,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,6 +23,8 @@ public class LobbyView extends BorderPane {
     private ChatPanel chatPanel;
     private Button readyButton;
     private Button startButton;
+
+    private List<Player> players = new ArrayList<>();
 
     /**
      * Lobi görünümü oluşturur
@@ -80,9 +83,11 @@ public class LobbyView extends BorderPane {
     /**
      * Oyuncu listesini günceller
      *
-     * @param players Güncellenecek oyuncu listesi
+     * @param newPlayers Güncellenecek oyuncu listesi
      */
-    public void updatePlayerList(List<Player> players) {
+    public void updatePlayerList(List<Player> newPlayers) {
+        this.players.clear();
+        this.players.addAll(newPlayers);
         playerListView.updatePlayers(players);
     }
 

@@ -32,6 +32,10 @@ public class GameState {
         // Aynı kullanıcı adına sahip oyuncu varsa ekleme
         if (players.stream().noneMatch(p -> p.getUsername().equals(player.getUsername()))) {
             players.add(player);
+            System.out.println("GameState: Oyuncu eklendi: " + player.getUsername() +
+                    ", Toplam oyuncu sayısı: " + players.size());
+        } else {
+            System.out.println("GameState: Oyuncu zaten listede: " + player.getUsername());
         }
     }
 
@@ -143,7 +147,9 @@ public class GameState {
      *
      * @return Oyuncular listesi
      */
+    // Koleksiyonu döndüren metodda da log ekleyin
     public ObservableList<Player> getPlayers() {
+        System.out.println("GameState: getPlayers çağrıldı, oyuncu sayısı: " + players.size());
         return players;
     }
 

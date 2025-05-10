@@ -1,5 +1,15 @@
 package com.bag_tos;
 
+import com.bag_tos.common.message.Message;
+import com.bag_tos.common.message.MessageType;
+import com.bag_tos.common.message.response.ActionResultResponse;
+import com.bag_tos.common.message.response.GameStateResponse;
+import com.bag_tos.common.message.response.RoleAssignmentResponse;
+import com.bag_tos.common.model.ActionType;
+import com.bag_tos.common.model.GamePhase;
+import com.bag_tos.common.model.PlayerInfo;
+import com.bag_tos.common.model.RoleType;
+import com.bag_tos.common.util.JsonUtils;
 import com.bag_tos.roles.Role;
 import com.bag_tos.roles.mafia.Mafya;
 import com.bag_tos.roles.naturel.Jester;
@@ -9,306 +19,329 @@ import com.bag_tos.roles.town.Serif;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static com.bag_tos.MessageUtils.*;
-
+/**
+ * Oyun mantığını yöneten ana sınıf
+ */
 public class Game {
+    // Oyuncu ve rol yönetimi
     private List<ClientHandler> players;
     private Map<String, Role> roles;
     private List<String> alivePlayers;
-    private Map<String, String> nightActions = new ConcurrentHashMap<>();
+
+    // Oyun aksiyon yönetimi
+    private Map<String, Map<ActionType, String>> nightActions;
     private Map<String, String> votes;
 
-    private ScheduledExecutorService timer = Executors.newScheduledThreadPool(1);
+    // Zamanlayıcı yönetimi
+    private ScheduledExecutorService timer;
     private ScheduledFuture<?> countdownTask;
     private int remainingSeconds;
-    private Phase currentPhase;
-    private RoomHandler roomHandler;
 
+    // Oyun durumu
+    private GamePhase currentPhase;
+    private RoomHandler roomHandler;
+    private boolean gameOver;
+
+    /**
+     * Yeni bir oyun nesnesi oluşturur
+     */
     public Game(List<ClientHandler> players) {
-        this.players = players;
+        this.players = new ArrayList<>(players);
         this.roles = new HashMap<>();
         this.alivePlayers = new ArrayList<>();
-        this.nightActions = new HashMap<>();
-        this.votes = new HashMap<>();
+        this.nightActions = new ConcurrentHashMap<>();
+        this.votes = new ConcurrentHashMap<>();
         this.timer = Executors.newScheduledThreadPool(1);
-        //this.roomHandler = new RoomHandler();
-        //initializeGame();
+        this.gameOver = false;
+        this.currentPhase = GamePhase.LOBBY;
     }
 
+    /**
+     * RoomHandler referansını ayarlar
+     */
     public void setRoomHandler(RoomHandler roomHandler) {
         this.roomHandler = roomHandler;
     }
 
-    public RoomHandler getRoomHandler() {
-        return roomHandler;
+    /**
+     * Oyuncuyu ekler
+     */
+    public void addPlayer(ClientHandler player) {
+        if (!players.contains(player)) {
+            players.add(player);
+        }
     }
 
-    public Object getRole(String username) {
+    /**
+     * Oyuncunun rolünü döndürür
+     */
+    public Role getRole(String username) {
         return roles.get(username);
     }
 
-    public enum Phase {
-        NIGHT, DAY;
-    }
-
-    public Phase getCurrentPhase() {
+    /**
+     * Mevcut fazı döndürür
+     */
+    public GamePhase getCurrentPhase() {
         return currentPhase;
     }
 
+    /**
+     * Oyunu başlatır
+     */
     public void start() {
-
-//        for (ClientHandler player : players) {
-//            roomHandler.addToRoom("LOBBY", player);
-//        }
-
-//        players.stream()
-//                .filter(p -> !(roles.get(p.getUsername()) instanceof Mafya))
-//                .forEach(p -> {
-//                    //roomHandler.removeFromRoom("MAFYA", p);
-//                    roomHandler.addToRoom("LOBBY", p);
-//                });
-
+        // Oyuncuları mafya odasına ekle (rollere göre)
         players.stream()
-                .filter(p -> roles.get(p.getUsername()) instanceof Mafya)
+                .filter(p -> getRole(p.getUsername()).getRoleType() == RoleType.MAFYA)
                 .forEach(p -> roomHandler.addToRoom("MAFYA", p));
+
+        // Gece fazıyla başla
         startNightPhase();
     }
 
+    /**
+     * Oyunu başlangıç durumuna getirir
+     */
     public void initializeGame() {
+        // Tüm oyuncuları hayatta olarak işaretle
+        alivePlayers.clear();
         for (ClientHandler player : players) {
             alivePlayers.add(player.getUsername());
         }
+
+        // Rolleri dağıt
         assignRoles();
     }
 
+    /**
+     * Oyunculara rolleri dağıtır
+     */
     public void assignRoles() {
         List<Role> rolePool = new ArrayList<>();
         int playerCount = players.size();
 
-        // Rol dağılımı (Town of Salem formatı)
-        rolePool.add(new Mafya()); // Godfather
-        //rolePool.add(new Framer());
+        // Temel roller
+        rolePool.add(new Mafya());
         rolePool.add(new Serif());
         rolePool.add(new Doktor());
         rolePool.add(new Jester());
 
-        // Oyuncu sayısına göre rollerin dengelenmesi
-        if (playerCount > 5) {
-            //rolePool.add(new Bodyguard());
-            //rolePool.add(new Executioner());
+        // Ek roller (isteğe bağlı)
+        if (playerCount > 4) {
+            rolePool.add(new Mafya()); // İkinci mafya
         }
 
+        // Rol listesini karıştır
         Collections.shuffle(rolePool);
 
-        // Oyunculara rollerin atanması
+        // Oyuncu sayısından fazla rol varsa, fazlalıkları çıkar
+        while (rolePool.size() > players.size()) {
+            rolePool.remove(rolePool.size() - 1);
+        }
+
+        // Rolleri oyunculara dağıt
         for (int i = 0; i < players.size(); i++) {
-            String username = players.get(i).getUsername();
-            Role role = rolePool.get(i);
+            ClientHandler player = players.get(i);
+            String username = player.getUsername();
+
+            // Rol havuzunda yeterli rol yoksa varsayılan rol ata
+            Role role = (i < rolePool.size()) ? rolePool.get(i) : new Jester();
+
             roles.put(username, role);
-            System.out.println(YESIL + "[DEBUG] Rol Atama: " + username + " -> " + role.getName() + RESET);
+
+            // Rol atamasını bildir
+            sendRoleAssignment(player, role);
+
+            System.out.println("[DEBUG] Rol Atama: " + username + " -> " + role.getName());
         }
     }
+
+    /**
+     * Oyuncuya rol atamasını bildirir
+     */
+    private void sendRoleAssignment(ClientHandler player, Role role) {
+        // Rol atama yanıtı
+        RoleAssignmentResponse roleResponse = new RoleAssignmentResponse(role.getName());
+
+        // Rol atama mesajı
+        Message message = new Message(MessageType.ROLE_ASSIGNMENT);
+        message.addData("roleAssignment", roleResponse);
+        message.addData("role", role.getName());
+        message.addData("roleType", role.getRoleType().name());
+
+        // Sadece ilgili oyuncuya gönder
+        player.sendJsonMessage(message);
+    }
+
+    /**
+     * Gece fazını başlatır
+     */
     private void startNightPhase() {
-        currentPhase = Phase.NIGHT;
+        currentPhase = GamePhase.NIGHT;
         remainingSeconds = 30;
-        for (ClientHandler player : players) {
-            //roomHandler.removeFromRoom("LOBBY", player);
-//            if (isMafia(player)) {
-//                // Mafya üyelerini MAFYA odasına ekle (zaten ekliyse tekrar ekleme)
-//                roomHandler.addToRoom("MAFYA", player);
-//            }
-        }
-        broadcastToAlivePlayers(formatMessage("Gece başladı!", currentPhase, true));
-        startCountdown();
-        scheduleNightActions();
         nightActions.clear();
 
-        for (ClientHandler player : players) {
-            String username = player.getUsername();
-            Role role = roles.get(username);
-            if (role instanceof Mafya) {
-                player.sendMessage("AKSIYON: /oldur <oyuncu>");
-            } else if (role instanceof Doktor) {
-                player.sendMessage("AKSIYON: /iyilestir <oyuncu>");
-            }
-        }
-    }
+        // Oyun durumu bildirimi
+        broadcastGameState();
 
-    private boolean isMafia(ClientHandler player) {
-        return roles.get(player.getUsername()) instanceof Mafya;
-    }
-
-    private void processNightActions() {
-        String mafyaHedef = null;
-        String doktorHedef = null;
-        System.out.println("Gece aksiyonları işleniyor...");
-        System.out.println("NightActions Map: " + nightActions.toString());
-
-        for (Map.Entry<String, String> entry : nightActions.entrySet()) {
-            String oyuncu = entry.getKey();
-            String hedef = entry.getValue();
-            Role role = roles.get(oyuncu);
-
-            if (role instanceof Mafya) {
-                mafyaHedef = hedef;
-            } else if (role instanceof Doktor) {
-                doktorHedef = hedef;
-            }
-        }
-
-        if (mafyaHedef != null && !mafyaHedef.equals(doktorHedef)) {
-            alivePlayers.remove(mafyaHedef);
-            String finalMafyaHedef = mafyaHedef;
-            players.stream()
-                    .filter(p -> p.getUsername().equals(finalMafyaHedef))
-                    .forEach(p -> {
-                        p.setAlive(false);
-                        p.sendMessage(olduruldunMessage());
-                    });
-            //System.out.println("[DEBUG] Mafya hedefi: " + mafyaHedef);
-            //System.out.println("[DEBUG] Doktor hedefi: " + doktorHedef);
-            broadcastToAlivePlayers(formatMessage("", "olduruldu", mafyaHedef, currentPhase, true));
-        }
-        checkWinConditions();
-    }
-
-    private void startDayPhase() {
-        currentPhase = Phase.DAY;
-        remainingSeconds = 30;
-//        players.stream()
-//                //.filter(p -> !(roles.get(p.getUsername()) instanceof Mafya))
-//                .forEach(p -> {
-//                    //roomHandler.removeFromRoom("MAFYA", p);
-//                    //roomHandler.addToRoom("LOBBY", p);
-//                });
-//
-//        players.stream()
-//                .filter(p -> roles.get(p.getUsername()) instanceof Mafya)
-//                .forEach(p -> roomHandler.addToRoom("MAFYA", p));
-
-        broadcastToAlivePlayers(formatMessage("Gündüz başladı!", "saniye kaldı.", String.valueOf(remainingSeconds), currentPhase, true));
+        // Zamanlayıcıyı başlat
         startCountdown();
-        scheduleDayActions();
+
+        // Gece aksiyonlarını zamanla
+        scheduleNightActions();
+
+        // Oyunculara uygun aksiyonları bildir
+        sendAvailableActions();
+    }
+
+    /**
+     * Gündüz fazını başlatır
+     */
+    private void startDayPhase() {
+        currentPhase = GamePhase.DAY;
+        remainingSeconds = 30;
         votes.clear();
 
+        // Oyun durumu bildirimi
+        broadcastGameState();
+
+        // Zamanlayıcıyı başlat
+        startCountdown();
+
+        // Gündüz aksiyonlarını zamanla
+        scheduleDayActions();
+
+        // Oyunculara uygun aksiyonları bildir
+        sendAvailableActions();
     }
 
-    private void processVotes() {
-        Map<String, Integer> oySayilari = new HashMap<>();
-        for (String hedef : votes.values()) {
-            oySayilari.put(hedef, oySayilari.getOrDefault(hedef, 0) + 1);
-        }
+    /**
+     * Oyun durumu mesajı oluşturur
+     */
+    public Message createGameStateMessage() {
+        // Oyuncu bilgilerini hazırla
+        List<PlayerInfo> playerInfoList = new ArrayList<>();
+        for (ClientHandler player : players) {
+            String username = player.getUsername();
+            boolean alive = alivePlayers.contains(username);
 
-        String asilan = null;
-        int maxOy = 0;
-        for (Map.Entry<String, Integer> entry : oySayilari.entrySet()) {
-            if (entry.getValue() > maxOy) {
-                maxOy = entry.getValue();
-                asilan = entry.getKey();
-            }
-        }
-
-        if (asilan != null) {
-            alivePlayers.remove(asilan);
-            String finalAsilan = asilan;
-            players.stream()
-                    .filter(p -> p.getUsername().equals(finalAsilan))
-                    .forEach(p -> {
-                        p.setAlive(false);
-                        p.sendMessage(asilmaMessage());
-                    });
-            broadcastToAlivePlayers(formatMessage("", "asildi!", asilan, currentPhase, true));
-
-        }
-
-        checkWinConditions();
-    }
-
-    private void checkWinConditions() {
-        int mafyaCount = 0;
-        int othersCount = 0;
-
-        for (String username : alivePlayers) {
             Role role = roles.get(username);
-            if (role instanceof Mafya) {
-                mafyaCount++;
-            } else {
-                othersCount++;
-            }
+            String roleName = (role != null) ? role.getName() : "UNKNOWN";
+
+            playerInfoList.add(new PlayerInfo(username, alive, roleName));
         }
 
-        if (mafyaCount == 0) {
-            endGame("Köylü");
-        } else if (mafyaCount >= othersCount) {
-            endGame("Mafya");
-        }
+        // Oyun durumu yanıtı
+        GameStateResponse gameStateResponse = new GameStateResponse(
+                currentPhase.name(),
+                remainingSeconds,
+                playerInfoList
+        );
+
+        // Oyun durumu mesajı
+        Message message = new Message(MessageType.GAME_STATE);
+        message.addData("gameState", gameStateResponse);
+        message.addData("phase", currentPhase.name());
+        message.addData("remainingTime", remainingSeconds);
+        message.addData("players", playerInfoList);
+
+        return message;
     }
 
-    private void endGame(String kazanan) {
-        timer.shutdownNow(); // Tüm zamanlayıcı görevlerini durdur
+    /**
+     * Tüm oyunculara mevcut oyun durumunu bildirir
+     */
+    private void broadcastGameState() {
+        // Oyun durumu mesajı oluştur
+        Message gameStateMessage = createGameStateMessage();
 
-        String kazananMesaj;
-        if (kazanan.equalsIgnoreCase("Mafya")) {
-            kazananMesaj = BG_KIRMIZI + BOLD + "\n=== OYUN BİTTİ ===\nMAFYA KAZANDI!\n" + RESET;
-        } else if (kazanan.equalsIgnoreCase("Köylü")) {
-            kazananMesaj = BG_YESIL + BOLD + "\n=== OYUN BİTTİ ===\nKÖYLÜLER KAZANDI!\n" + RESET;
-        } else {
-            kazananMesaj = BG_BEYAZ + BOLD + "\n=== OYUN BİTTİ ===\n" + kazanan.toUpperCase() + " kazandı!\n" + RESET;
-        }
-
-        players.forEach(p -> p.sendMessage(kazananMesaj));
-    }
-
-
-
-    private void broadcastToAlivePlayers(String message) {
-        players.stream()
-                .filter(ClientHandler::isAlive)
-                .forEach(p -> p.sendMessage(message));
-    }
-
-    public void handleAction(String oyuncu, String komut) {
-        //System.out.println("[DEBUG] HandleAction: " + oyuncu + " -> " + komut);
-        if (komut.startsWith("/oldur ")) {
-            String[] parcalar = komut.split(" ", 2); // Boşluğa göre böl
-            if (parcalar.length >= 2) {
-                String hedef = parcalar[1];
-                nightActions.put(oyuncu, hedef);
-                System.out.println("[DEBUG] Mafya hedefi eklendi: " + oyuncu + " -> " + hedef);
-            }
-        } else if (komut.startsWith("/iyilestir ")) {
-            String[] parcalar = komut.split(" ", 2); // Boşluğa göre böl
-            if (parcalar.length >= 2) {
-                String hedef = parcalar[1];
-                nightActions.put(oyuncu, hedef);
-                System.out.println("[DEBUG] Doktor hedefi eklendi: " + oyuncu + " -> " + hedef);
+        // Tüm oyunculara gönder
+        for (ClientHandler player : players) {
+            if (alivePlayers.contains(player.getUsername())) {
+                player.sendJsonMessage(gameStateMessage);
             }
         }
     }
 
-    public void handleVote (String oyuncu, String hedef){
-        votes.put(oyuncu, hedef);
-        System.out.println("[DEBUG] Oy verildi: " + oyuncu + " -> " + hedef);
+    /**
+     * Kullanılabilir aksiyonları oyunculara bildirir
+     */
+    private void sendAvailableActions() {
+        for (ClientHandler player : players) {
+            if (!alivePlayers.contains(player.getUsername())) {
+                continue; // Ölü oyuncular aksiyon yapamaz
+            }
+
+            String username = player.getUsername();
+            Role role = roles.get(username);
+
+            if (role == null) {
+                continue;
+            }
+
+            // Kullanılabilir aksiyonlar mesajı
+            Message actionMessage = new Message(MessageType.AVAILABLE_ACTIONS);
+            List<String> availableActions = new ArrayList<>();
+
+            // Faza ve role göre aksiyonları belirle
+            if (currentPhase == GamePhase.NIGHT) {
+                RoleType roleType = role.getRoleType();
+
+                if (roleType == RoleType.MAFYA) {
+                    availableActions.add(ActionType.KILL.name());
+                } else if (roleType == RoleType.DOKTOR) {
+                    availableActions.add(ActionType.HEAL.name());
+                } else if (roleType == RoleType.SERIF) {
+                    availableActions.add(ActionType.INVESTIGATE.name());
+                }
+            } else if (currentPhase == GamePhase.DAY) {
+                availableActions.add(ActionType.VOTE.name());
+            }
+
+            // Mevcut aksiyonları ekle
+            actionMessage.addData("availableActions", availableActions);
+
+            // Hedef listesi ekle
+            List<String> possibleTargets = new ArrayList<>();
+            for (ClientHandler target : players) {
+                if (alivePlayers.contains(target.getUsername()) && !target.getUsername().equals(username)) {
+                    possibleTargets.add(target.getUsername());
+                }
+            }
+            actionMessage.addData("possibleTargets", possibleTargets);
+
+            // Oyuncuya gönder
+            player.sendJsonMessage(actionMessage);
+        }
     }
 
+    /**
+     * Geri sayım zamanlayıcısını başlatır
+     */
     private void startCountdown() {
-        // Önceki geri sayımı iptal et
+        // Önceki zamanlayıcıyı iptal et
         if (countdownTask != null && !countdownTask.isDone()) {
             countdownTask.cancel(true);
         }
 
-        // Yeni geri sayımı başlat
+        // Yeni zamanlayıcı başlat
         countdownTask = timer.scheduleAtFixedRate(() -> {
             remainingSeconds--;
-            System.out.print("\rKalan süre: " + remainingSeconds + " saniye"); // Aynı satırda güncelle
+
+            // Her 5 saniyede bir durumu bildir
+            if (remainingSeconds % 5 == 0 || remainingSeconds <= 5) {
+                broadcastGameState();
+            }
 
             if (remainingSeconds <= 0) {
-                System.out.println(); // Yeni satıra geç
                 countdownTask.cancel(true);
             }
-        }, 1, 1, TimeUnit.SECONDS); // 1 saniye gecikme, 1 saniye aralık
+        }, 1, 1, TimeUnit.SECONDS);
     }
 
+    /**
+     * Gece aksiyonlarını zamanlar
+     */
     private void scheduleNightActions() {
         timer.schedule(() -> {
             processNightActions();
@@ -316,6 +349,9 @@ public class Game {
         }, 30, TimeUnit.SECONDS);
     }
 
+    /**
+     * Gündüz aksiyonlarını zamanlar
+     */
     private void scheduleDayActions() {
         timer.schedule(() -> {
             processVotes();
@@ -323,7 +359,372 @@ public class Game {
         }, 30, TimeUnit.SECONDS);
     }
 
-    public void addPlayer(ClientHandler player){
-        players.add(player);
+    /**
+     * Gece aksiyonunu kaydeder
+     */
+    public void registerNightAction(String username, ActionType actionType, String target) {
+        // Oyuncu hayatta değilse işleme
+        if (!alivePlayers.contains(username)) {
+            return;
+        }
+
+        // Oyuncunun rolü uygun değilse işleme
+        Role role = roles.get(username);
+        if (role == null) {
+            return;
+        }
+
+        RoleType roleType = role.getRoleType();
+
+        if ((actionType == ActionType.KILL && roleType != RoleType.MAFYA) ||
+                (actionType == ActionType.HEAL && roleType != RoleType.DOKTOR) ||
+                (actionType == ActionType.INVESTIGATE && roleType != RoleType.SERIF)) {
+            return;
+        }
+
+        // Aksiyon kaydı
+        Map<ActionType, String> playerActions = nightActions.computeIfAbsent(username, k -> new HashMap<>());
+        playerActions.put(actionType, target);
+
+        System.out.println("[DEBUG] Gece aksiyonu kaydedildi: " + username + " -> " + actionType + " -> " + target);
+    }
+
+    /**
+     * Oylama kaydeder
+     */
+    public void registerVote(String username, String target) {
+        // Oyuncu hayatta değilse işleme
+        if (!alivePlayers.contains(username)) {
+            return;
+        }
+
+        // Hedef hayatta değilse işleme
+        if (!alivePlayers.contains(target)) {
+            return;
+        }
+
+        // Oylama kaydı
+        votes.put(username, target);
+
+        System.out.println("[DEBUG] Oy kaydedildi: " + username + " -> " + target);
+
+        // Oy bilgisini bildir
+        broadcastVoteInformation(username, target);
+    }
+
+    /**
+     * Oy kullanımını tüm oyunculara bildirir
+     */
+    private void broadcastVoteInformation(String voter, String target) {
+        // Oy kullanımı mesajı
+        Message voteMessage = new Message(MessageType.GAME_STATE);
+        voteMessage.addData("event", "VOTE_CAST");
+        voteMessage.addData("voter", voter);
+        voteMessage.addData("target", target);
+        voteMessage.addData("message", voter + " oyunu " + target + " için kullandı");
+
+        // Tüm oyunculara bildir
+        for (ClientHandler player : players) {
+            if (alivePlayers.contains(player.getUsername())) {
+                player.sendJsonMessage(voteMessage);
+            }
+        }
+    }
+
+    /**
+     * Gece aksiyonlarını işler
+     */
+    private void processNightActions() {
+        String mafyaHedef = null;
+        String doktorHedef = null;
+
+        // Mafya hedefini bul
+        for (Map.Entry<String, Map<ActionType, String>> entry : nightActions.entrySet()) {
+            String player = entry.getKey();
+            Map<ActionType, String> actions = entry.getValue();
+
+            Role role = roles.get(player);
+            if (role != null && role.getRoleType() == RoleType.MAFYA && actions.containsKey(ActionType.KILL)) {
+                mafyaHedef = actions.get(ActionType.KILL);
+                break; // İlk mafyanın hedefini al
+            }
+        }
+
+        // Doktor hedefini bul
+        for (Map.Entry<String, Map<ActionType, String>> entry : nightActions.entrySet()) {
+            String player = entry.getKey();
+            Map<ActionType, String> actions = entry.getValue();
+
+            Role role = roles.get(player);
+            if (role != null && role.getRoleType() == RoleType.DOKTOR && actions.containsKey(ActionType.HEAL)) {
+                doktorHedef = actions.get(ActionType.HEAL);
+                break; // İlk doktorun hedefini al
+            }
+        }
+
+        // Öldürme işlemi
+        if (mafyaHedef != null && !mafyaHedef.equals(doktorHedef)) {
+            // Hedefi öldür
+            alivePlayers.remove(mafyaHedef);
+
+            handlePlayerKill(mafyaHedef);
+        } else if (mafyaHedef != null && mafyaHedef.equals(doktorHedef)) {
+            // Korunma bildirimi
+            Message protectionMessage = new Message(MessageType.GAME_STATE);
+            protectionMessage.addData("event", "PLAYER_PROTECTED");
+            protectionMessage.addData("target", mafyaHedef);
+            protectionMessage.addData("message", "Doktor birisini korudu!");
+
+            // Tüm oyunculara bildir
+            for (ClientHandler player : players) {
+                if (alivePlayers.contains(player.getUsername())) {
+                    player.sendJsonMessage(protectionMessage);
+                }
+            }
+        }
+
+        // Kazanma durumunu kontrol et
+        checkWinConditions();
+    }
+
+
+    private void handlePlayerKill(String targetUsername) {
+        // Hedef oyuncuyu bul
+        Optional<ClientHandler> targetOptional = players.stream()
+                .filter(p -> p.getUsername().equals(targetUsername))
+                .findFirst();
+
+        if (targetOptional.isPresent()) {
+            ClientHandler target = targetOptional.get();
+            target.setAlive(false);
+
+            // Öldürüldü bildirimi
+            Message deathMessage = new Message(MessageType.ACTION_RESULT);
+            ActionResultResponse resultResponse = new ActionResultResponse(
+                    ActionType.KILL.name(),
+                    targetUsername,
+                    "KILLED",
+                    "Öldürüldünüz!"
+            );
+            deathMessage.addData("actionResult", resultResponse);
+            deathMessage.addData("message", "Öldürüldünüz!");
+            deathMessage.addData("alive", false);
+            target.sendJsonMessage(deathMessage);
+
+            // Diğer oyunculara bildir
+            Message killMessage = new Message(MessageType.GAME_STATE);
+            killMessage.addData("event", "PLAYER_KILLED");
+            killMessage.addData("target", targetUsername);
+            killMessage.addData("message", targetUsername + " öldürüldü!");
+
+            for (ClientHandler player : players) {
+                if (!player.getUsername().equals(targetUsername) && alivePlayers.contains(player.getUsername())) {
+                    player.sendJsonMessage(killMessage);
+                }
+            }
+        }
+    }
+
+    /**
+     * Oylamaları işler
+     */
+    private void processVotes() {
+        Map<String, Integer> voteCounts = new HashMap<>();
+
+        // Oyları say
+        for (String target : votes.values()) {
+            voteCounts.put(target, voteCounts.getOrDefault(target, 0) + 1);
+        }
+
+        // En çok oy alanı bul
+        String executedPlayer = null;
+        int maxVotes = 0;
+
+        for (Map.Entry<String, Integer> entry : voteCounts.entrySet()) {
+            if (entry.getValue() > maxVotes) {
+                maxVotes = entry.getValue();
+                executedPlayer = entry.getKey();
+            }
+        }
+
+        // Asma işlemi veya bildirim
+        if (executedPlayer != null && maxVotes > 0) {
+            executePlayer(executedPlayer, new HashMap<>(votes)); // Votes'un kopyasını gönder
+        } else {
+            notifyNoExecution();
+        }
+
+        // Kazanma durumunu kontrol et
+        checkWinConditions();
+    }
+
+    /**
+     * Oyuncuyu asma işlemini gerçekleştirir
+     */
+    private void executePlayer(String playerToExecute, Map<String, String> voteDetails) {
+        // Oyuncuyu as
+        alivePlayers.remove(playerToExecute);
+
+        // Hedef oyuncuyu bul ve bilgilendir
+        Optional<ClientHandler> targetOptional = players.stream()
+                .filter(p -> p.getUsername().equals(playerToExecute))
+                .findFirst();
+
+        if (targetOptional.isPresent()) {
+            ClientHandler target = targetOptional.get();
+            target.setAlive(false);
+
+            // Asıldı bildirimi
+            Message executionMessage = new Message(MessageType.ACTION_RESULT);
+            ActionResultResponse resultResponse = new ActionResultResponse(
+                    ActionType.VOTE.name(),
+                    playerToExecute,
+                    "EXECUTED",
+                    "Asıldınız!"
+            );
+            executionMessage.addData("actionResult", resultResponse);
+            executionMessage.addData("message", "Asıldınız!");
+            executionMessage.addData("alive", false);
+            target.sendJsonMessage(executionMessage);
+        }
+
+        // Diğer oyunculara bildir
+        Message executionMessage = new Message(MessageType.GAME_STATE);
+        executionMessage.addData("event", "PLAYER_EXECUTED");
+        executionMessage.addData("target", playerToExecute);
+        executionMessage.addData("message", playerToExecute + " asıldı!");
+        executionMessage.addData("votes", voteDetails);  // Oy detaylarını da gönder
+
+        for (ClientHandler player : players) {
+            if (!player.getUsername().equals(playerToExecute) && alivePlayers.contains(player.getUsername())) {
+                player.sendJsonMessage(executionMessage);
+            }
+        }
+    }
+
+    /**
+     * Asılma olmaması durumunda bildirim gönderir
+     */
+    private void notifyNoExecution() {
+        Message noExecutionMessage = new Message(MessageType.GAME_STATE);
+        noExecutionMessage.addData("event", "NO_EXECUTION");
+        noExecutionMessage.addData("message", "Bugün kimse asılmadı.");
+
+        for (ClientHandler player : players) {
+            if (alivePlayers.contains(player.getUsername())) {
+                player.sendJsonMessage(noExecutionMessage);
+            }
+        }
+    }
+
+    /**
+     * Kazanma koşullarını kontrol eder
+     */
+    private void checkWinConditions() {
+        if (gameOver) {
+            return; // Oyun zaten bitti
+        }
+
+        int mafyaCount = 0;
+        int townCount = 0;
+
+        // Hayatta kalan oyuncuların rollerini say
+        for (String username : alivePlayers) {
+            Role role = roles.get(username);
+
+            if (role == null) {
+                continue;
+            }
+
+            RoleType roleType = role.getRoleType();
+
+            if (roleType == RoleType.MAFYA) {
+                mafyaCount++;
+            } else if (roleType == RoleType.DOKTOR || roleType == RoleType.SERIF) {
+                townCount++;
+            }
+            // Jester gibi nötr roller sayılmaz
+        }
+
+        // Kazanan takımı belirle
+        String winningTeam = null;
+
+        if (mafyaCount == 0) {
+            winningTeam = "TOWN";
+        } else if (mafyaCount >= townCount) {
+            winningTeam = "MAFIA";
+        }
+
+        // Kazanan varsa oyunu bitir
+        if (winningTeam != null) {
+            gameOver = true;
+            endGame(winningTeam);
+        }
+    }
+
+    /**
+     * Oyunu bitirir ve sonucu bildirir
+     */
+    private void endGame(String winningTeam) {
+        // Zamanlayıcıyı durdur
+        timer.shutdownNow();
+
+        // Kazanan takıma göre mesaj
+        String endMessage;
+        if ("MAFIA".equals(winningTeam)) {
+            endMessage = "OYUN BİTTİ\nMAFYA KAZANDI!";
+        } else if ("TOWN".equals(winningTeam)) {
+            endMessage = "OYUN BİTTİ\nKÖYLÜLER KAZANDI!";
+        } else {
+            endMessage = "OYUN BİTTİ\n" + winningTeam + " kazandı!";
+        }
+
+        // Rol bilgilerini topla
+        List<Map<String, String>> finalRoles = new ArrayList<>();
+        for (ClientHandler player : players) {
+            String username = player.getUsername();
+            Role role = roles.get(username);
+
+            if (role != null) {
+                finalRoles.add(Map.of(
+                        "username", username,
+                        "role", role.getName(),
+                        "roleType", role.getRoleType().name(),
+                        "team", roleToTeam(role),
+                        "alive", Boolean.toString(alivePlayers.contains(username))
+                ));
+            }
+        }
+
+        // Oyun sonu mesajı
+        Message gameEndMessage = new Message(MessageType.GAME_STATE);
+        gameEndMessage.addData("gameOver", true);
+        gameEndMessage.addData("winningTeam", winningTeam);
+        gameEndMessage.addData("message", endMessage);
+        gameEndMessage.addData("finalRoles", finalRoles);
+
+        // Tüm oyunculara bildir
+        for (ClientHandler player : players) {
+            player.sendJsonMessage(gameEndMessage);
+        }
+    }
+
+    /**
+     * Rolün hangi takıma ait olduğunu döndürür
+     */
+    private String roleToTeam(Role role) {
+        if (role == null) {
+            return "UNKNOWN";
+        }
+
+        RoleType roleType = role.getRoleType();
+
+        if (roleType == RoleType.MAFYA) {
+            return "MAFIA";
+        } else if (roleType == RoleType.DOKTOR || roleType == RoleType.SERIF) {
+            return "TOWN";
+        } else {
+            return "NEUTRAL";
+        }
     }
 }

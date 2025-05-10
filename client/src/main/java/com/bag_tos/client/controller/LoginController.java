@@ -65,17 +65,20 @@ public class LoginController {
                 // UI thread'inde sonucu göster
                 Platform.runLater(() -> {
                     if (connected) {
-                        // Bağlantı başarılı, mesaj dinleyiciyi ayarla
-                        // Ambiguous constructor hatası burada düzeltildi
-                        LobbyController tempLobbyController = null;
-                        MessageHandler messageHandler = new MessageHandler(tempLobbyController, gameState);
-                        networkManager.setMessageListener(messageHandler);
-
                         // Kullanıcı adını sunucuya gönder
                         networkManager.sendMessage(username);
 
-                        // Lobi ekranına geçiş yap
-                        showLobbyScreen();
+                        // DOĞRU SIRA: Önce LobbyController oluştur, sonra MessageHandler'ı ona bağla
+                        // Lobi ekranına geçiş yap ve LobbyController oluştur
+                        LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
+
+                        // Şimdi yeni oluşturulan controller ile MessageHandler'ı yapılandır
+                        MessageHandler messageHandler = new MessageHandler(lobbyController, gameState);
+                        networkManager.setMessageListener(messageHandler);
+
+                        // Yeni Scene'i göster
+                        Scene scene = new Scene(lobbyController.getView(), 800, 600);
+                        primaryStage.setScene(scene);
                     } else {
                         view.setStatusText("Bağlantı hatası! Lütfen tekrar deneyin.");
                         view.getConnectButton().setDisable(false);

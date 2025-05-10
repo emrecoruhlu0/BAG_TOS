@@ -82,6 +82,11 @@ public class PlayerListView extends VBox {
      * @param playerList Güncellenecek oyuncu listesi
      */
     public void updatePlayers(List<Player> playerList) {
+        System.out.println("updatePlayers çağrıldı, oyuncu sayısı: " + playerList.size());
+        // Oyuncuları listele
+        for (Player p : playerList) {
+            System.out.println("Oyuncu: " + p.getUsername());
+        }
         players.clear();
         players.addAll(playerList);
     }

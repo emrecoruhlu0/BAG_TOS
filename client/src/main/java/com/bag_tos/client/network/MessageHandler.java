@@ -51,7 +51,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
             handleMafiaMessage(message);
         } else if (message.contains("ROL:")) {
             handleRoleAssignment(message);
-        } else if (message.contains("lobiye katildi")) {
+        } else if (message.contains("LOBBY")) {
             handlePlayerJoin(message);
         } else if (message.contains("OLDURULDUN")) {
             handlePlayerDeath(message);
@@ -172,13 +172,14 @@ public class MessageHandler implements NetworkManager.MessageListener {
             String username = message.split(" ")[1];
             Player player = new Player(username);
             gameState.addPlayer(player);
+            System.out.println("Yeni oyuncu eklendi: " + username);
 
-            if (lobbyController != null && lobbyController.getView() != null) {
+            if (lobbyController != null) {
                 lobbyController.updatePlayerList();
-                lobbyController.addChatMessage(message);
             }
         } catch (Exception e) {
             System.err.println("Oyuncu katılımı işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

@@ -1,22 +1,34 @@
 package com.bag_tos;
 
+import com.bag_tos.common.message.Message;
+import com.bag_tos.common.message.MessageType;
+import com.bag_tos.common.message.request.*;
+import com.bag_tos.common.message.response.*;
+import com.bag_tos.common.model.ActionType;
+import com.bag_tos.common.model.GamePhase;
+import com.bag_tos.common.util.JsonUtils;
+import com.bag_tos.roles.Role;
 import com.bag_tos.roles.mafia.Mafya;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Map;
 
-import static com.bag_tos.MessageUtils.*;
-
+/**
+ * İstemci bağlantısını yöneten ve JSON mesajlaşma sistemini kullanan sınıf
+ */
 public class ClientHandler implements Runnable {
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
     private String username;
-    //private Lobby lobby;
     private RoomHandler roomHandler;
     private Game game;
     private boolean isAlive = true;
 
+    /**
+     * Yeni istemci bağlantısı oluşturur
+     */
     public ClientHandler(Socket socket, RoomHandler roomHandler) throws IOException {
         this.socket = socket;
         this.roomHandler = roomHandler;
@@ -24,142 +36,419 @@ public class ClientHandler implements Runnable {
         this.out = new PrintWriter(socket.getOutputStream(), true);
     }
 
+    @Override
+    public void run() {
+        try {
+            // Karşılama mesajı
+            Message welcomeMessage = new Message(MessageType.GAME_STATE);
+            welcomeMessage.addData("message", "Hoş geldiniz!");
+            welcomeMessage.addData("state", "AUTH");
+            sendJsonMessage(welcomeMessage);
+
+            // Kullanıcı adı doğrulama
+            String proposedUsername = handleAuthentication();
+            if (proposedUsername == null) {
+                // Doğrulama başarısız oldu ya da bağlantı kesildi
+                return;
+            }
+
+            // Kullanıcı adını ayarla ve odaya ekle
+            this.username = proposedUsername;
+            roomHandler.addUsername(username);
+            roomHandler.addToRoom("LOBBY", this);
+            this.game = roomHandler.getGame();
+
+            // Yeni oyuncu katıldığını bildir
+            roomHandler.notifyPlayerJoined(username);
+
+            // Mesaj döngüsü
+            String jsonLine;
+            while ((jsonLine = in.readLine()) != null) {
+                if (jsonLine.startsWith("{")) {
+                    try {
+                        Message message = JsonUtils.parseMessage(jsonLine);
+                        if (message != null) {
+                            processMessage(message);
+                        } else {
+                            sendErrorMessage("INVALID_FORMAT", "Geçersiz JSON formatı");
+                        }
+                    } catch (Exception e) {
+                        sendErrorMessage("PARSE_ERROR", "JSON ayrıştırma hatası: " + e.getMessage());
+                    }
+                } else {
+                    sendErrorMessage("INVALID_FORMAT", "Geçersiz mesaj formatı, JSON bekleniyor");
+                }
+            }
+
+        } catch (IOException e) {
+            System.out.println("Hata: " + (username != null ? username : "Bilinmeyen kullanıcı") + " bağlantısı kesildi.");
+        } finally {
+            cleanup();
+        }
+    }
+
+    /**
+     * Kullanıcı doğrulama işlemini gerçekleştirir
+     * @return Doğrulanmış kullanıcı adı, başarısız olursa null
+     */
+    private String handleAuthentication() {
+        try {
+            // Kullanıcı adı isteme mesajı
+            Message authRequest = new Message(MessageType.GAME_STATE);
+            authRequest.addData("state", "AUTH_REQUEST");
+            authRequest.addData("message", "KULLANICI_ADI:");
+            sendJsonMessage(authRequest);
+
+            // Kullanıcı adını al ve doğrula
+            String proposedUsername = null;
+            boolean isUsernameValid = false;
+
+            while (!isUsernameValid) {
+                String inputLine = in.readLine();
+
+                if (inputLine == null) {
+                    return null; // Bağlantı kesildi
+                }
+
+                if (inputLine.startsWith("{")) {
+                    // JSON mesajından kullanıcı adı çıkarma
+                    try {
+                        Message message = JsonUtils.parseMessage(inputLine);
+                        if (message != null) {
+                            // Farklı mesaj tiplerini kontrol et
+                            if (message.getType() == MessageType.READY) {
+                                proposedUsername = (String) message.getDataValue("username");
+                            } else {
+                                // Diğer mesaj tiplerinden username değerini alma
+                                proposedUsername = (String) message.getDataValue("username");
+                            }
+                        }
+                    } catch (Exception e) {
+                        sendErrorMessage("PARSE_ERROR", "Kullanıcı adı işlenirken hata: " + e.getMessage());
+                        continue;
+                    }
+                } else {
+                    // Direkt string olarak kullanıcı adı
+                    proposedUsername = inputLine;
+                }
+
+                // Kullanıcı adını doğrula
+                if (proposedUsername == null || proposedUsername.trim().isEmpty()) {
+                    sendErrorMessage("AUTH_ERROR", "Kullanıcı adı boş olamaz!");
+                } else if (roomHandler.isUsernameTaken(proposedUsername)) {
+                    sendErrorMessage("AUTH_ERROR", "Bu kullanıcı adı zaten alındı!");
+                } else {
+                    isUsernameValid = true;
+                }
+            }
+
+            return proposedUsername;
+
+        } catch (IOException e) {
+            System.err.println("Doğrulama sırasında hata: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gelen JSON mesajını işler
+     */
+    private void processMessage(Message message) {
+        try {
+            // Oyuncu ölü ise, sadece belirli mesajlara izin ver
+            if (!isAlive && message.getType() != MessageType.CHAT) {
+                sendErrorMessage("FORBIDDEN", "Ölüsünüz, işlem yapamazsınız!");
+                return;
+            }
+
+            // Mesaj tipine göre işle
+            switch (message.getType()) {
+                case READY:
+                    handleReadyCommand(message);
+                    break;
+
+                case START_GAME:
+                    handleStartGameCommand(message);
+                    break;
+
+                case ACTION:
+                    handleActionCommand(message);
+                    break;
+
+                case VOTE:
+                    handleVoteCommand(message);
+                    break;
+
+                case CHAT:
+                    handleChatCommand(message);
+                    break;
+
+                default:
+                    sendErrorMessage("UNKNOWN_MESSAGE", "Bilinmeyen mesaj tipi: " + message.getType());
+            }
+
+        } catch (Exception e) {
+            System.err.println("Mesaj işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
+            sendErrorMessage("PROCESSING_ERROR", "Mesaj işlenirken bir hata oluştu: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hazır olma mesajını işler
+     */
+    private void handleReadyCommand(Message message) {
+        try {
+            ReadyRequest readyRequest = JsonUtils.fromJson(
+                    JsonUtils.toJson(message.getDataValue("readyRequest")),
+                    ReadyRequest.class
+            );
+
+            if (readyRequest != null && readyRequest.isReady()) {
+                roomHandler.increaseReadyCount();
+                System.out.println("Ready isteği: " + roomHandler.getReadyCount());
+                roomHandler.checkGameStart();
+
+                // Başarılı işlem bildirimi
+                Message response = new Message(MessageType.GAME_STATE);
+                response.addData("status", "success");
+                response.addData("message", "Hazır durumundasınız");
+                response.addData("readyCount", roomHandler.getReadyCount());
+                sendJsonMessage(response);
+
+                // Tüm oyunculara güncel durum bildir
+                roomHandler.broadcastGameState();
+            }
+        } catch (Exception e) {
+            System.err.println("Ready komutu işlenirken hata: " + e.getMessage());
+            sendErrorMessage("PROCESSING_ERROR", "Ready komutu işlenirken hata oluştu");
+        }
+    }
+
+    /**
+     * Oyun başlatma mesajını işler
+     */
+    private void handleStartGameCommand(Message message) {
+        try {
+            roomHandler.increaseStartCount();
+            System.out.println("Start isteği: " + roomHandler.getStartCount());
+            roomHandler.checkGameStart();
+
+            // Başarılı işlem bildirimi
+            Message response = new Message(MessageType.GAME_STATE);
+            response.addData("status", "success");
+            response.addData("message", "Oyun başlatma isteği gönderildi");
+            response.addData("startCount", roomHandler.getStartCount());
+            sendJsonMessage(response);
+        } catch (Exception e) {
+            System.err.println("Start komutu işlenirken hata: " + e.getMessage());
+            sendErrorMessage("PROCESSING_ERROR", "Start komutu işlenirken hata oluştu");
+        }
+    }
+
+    /**
+     * Aksiyon mesajını işler
+     */
+    private void handleActionCommand(Message message) {
+        try {
+            ActionRequest actionRequest = JsonUtils.fromJson(
+                    JsonUtils.toJson(message.getDataValue("actionRequest")),
+                    ActionRequest.class
+            );
+
+            if (actionRequest != null) {
+                String actionTypeStr = actionRequest.getActionType();
+                String target = actionRequest.getTarget();
+
+                try {
+                    ActionType actionType = ActionType.valueOf(actionTypeStr);
+
+                    if (game.getCurrentPhase() == GamePhase.NIGHT) {
+                        // Rol yetkisi kontrolü
+                        Role role = game.getRole(username);
+                        boolean authorized = false;
+
+                        if (actionType == ActionType.KILL && role instanceof Mafya) {
+                            authorized = true;
+                        } else if (actionType == ActionType.HEAL && role.getRoleType() == com.bag_tos.common.model.RoleType.DOKTOR) {
+                            authorized = true;
+                        } else if (actionType == ActionType.INVESTIGATE && role.getRoleType() == com.bag_tos.common.model.RoleType.SERIF) {
+                            authorized = true;
+                        }
+
+                        if (!authorized) {
+                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                            return;
+                        }
+
+                        // Aksiyonu kaydet
+                        game.registerNightAction(username, actionType, target);
+
+                        // Başarılı işlem bildirimi
+                        ActionResultResponse resultResponse = new ActionResultResponse(
+                                actionTypeStr, target, "SUCCESS", "Aksiyon başarıyla gerçekleştirildi"
+                        );
+
+                        Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                        resultMessage.addData("actionResult", resultResponse);
+
+                        sendJsonMessage(resultMessage);
+                    } else {
+                        sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
+                    }
+                } catch (IllegalArgumentException e) {
+                    sendErrorMessage("INVALID_ACTION_TYPE", "Geçersiz aksiyon tipi: " + actionTypeStr);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Aksiyon komutu işlenirken hata: " + e.getMessage());
+            sendErrorMessage("PROCESSING_ERROR", "Aksiyon komutu işlenirken hata oluştu");
+        }
+    }
+
+    /**
+     * Oylama mesajını işler
+     */
+    private void handleVoteCommand(Message message) {
+        try {
+            VoteRequest voteRequest = JsonUtils.fromJson(
+                    JsonUtils.toJson(message.getDataValue("voteRequest")),
+                    VoteRequest.class
+            );
+
+            if (voteRequest != null) {
+                String target = voteRequest.getTarget();
+
+                if (game.getCurrentPhase() == GamePhase.DAY) {
+                    game.registerVote(username, target);
+
+                    // Başarılı işlem bildirimi
+                    ActionResultResponse resultResponse = new ActionResultResponse(
+                            "VOTE", target, "SUCCESS", "Oy başarıyla kullanıldı"
+                    );
+
+                    Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                    resultMessage.addData("actionResult", resultResponse);
+
+                    sendJsonMessage(resultMessage);
+                } else {
+                    sendErrorMessage("INVALID_PHASE", "Oylamayı şu anda gerçekleştiremezsiniz");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Oylama komutu işlenirken hata: " + e.getMessage());
+            sendErrorMessage("PROCESSING_ERROR", "Oylama komutu işlenirken hata oluştu");
+        }
+    }
+
+    /**
+     * Sohbet mesajını işler
+     */
+    private void handleChatCommand(Message message) {
+        try {
+            ChatRequest chatRequest = JsonUtils.fromJson(
+                    JsonUtils.toJson(message.getDataValue("chatRequest")),
+                    ChatRequest.class
+            );
+
+            if (chatRequest != null) {
+                String chatMessage = chatRequest.getMessage();
+                String room = chatRequest.getRoom();
+
+                if ("MAFIA".equals(room) && isMafia()) {
+                    // Mafya sohbeti
+                    roomHandler.broadcastChatToRoom("MAFYA", username, chatMessage, "MAFIA");
+                } else if (game.getCurrentPhase() == GamePhase.DAY || game.getCurrentPhase() == GamePhase.LOBBY || "LOBBY".equals(room)) {
+                    // Genel sohbet
+                    roomHandler.broadcastChatToRoom("LOBBY", username, chatMessage, "LOBBY");
+                } else {
+                    sendErrorMessage("INVALID_PHASE", "Şu anda mesaj gönderemezsiniz");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Sohbet komutu işlenirken hata: " + e.getMessage());
+            sendErrorMessage("PROCESSING_ERROR", "Sohbet komutu işlenirken hata oluştu");
+        }
+    }
+
+    /**
+     * Kaynakları temizler ve bağlantıyı kapatır
+     */
+    void cleanup() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+
+            if (username != null) {
+                roomHandler.removeUsername(username);
+                roomHandler.notifyPlayerLeft(username);
+            }
+        } catch (IOException e) {
+            System.err.println("Temizleme sırasında hata: " + e.getMessage());
+        }
+    }
+
+    /**
+     * JSON formatında mesaj gönderir
+     */
+    public void sendJsonMessage(Message message) {
+        String jsonString = JsonUtils.toJson(message);
+        out.println(jsonString);
+    }
+
+    /**
+     * Hata mesajı oluşturur ve gönderir
+     */
+    private void sendErrorMessage(String code, String errorMessage) {
+        Message errorMsg = new Message(MessageType.ERROR);
+        errorMsg.addData("code", code);
+        errorMsg.addData("message", errorMessage);
+
+        sendJsonMessage(errorMsg);
+    }
+
+    // Getter ve Setter metodları
+
+    /**
+     * Oyuncunun hayatta olup olmadığını ayarlar
+     */
     public void setAlive(boolean alive) {
         isAlive = alive;
     }
 
+    /**
+     * Oyuncunun kullanıcı adını döndürür
+     */
     public String getUsername() {
         return username;
     }
 
-    public void sendMessage(String message) {
-        out.println(message);
-    }
-
+    /**
+     * Oyun referansını ayarlar
+     */
     public void setGame(Game game) {
         this.game = game;
     }
 
-    @Override
-    public void run() {
-        try {
-            out.println("HOŞ GELDINIZ");
-            String proposedUsername;
-            boolean isUsernameValid;
-
-            do {
-                isUsernameValid = true; // Varsayılan olarak geçerli kabul et
-                out.println("KULLANICI_ADI:"); // Kullanıcıdan giriş iste
-                out.flush(); // Mesajın hemen gitmesini sağla
-                proposedUsername = in.readLine();
-
-                // Bağlantı kopması kontrolü
-                if (proposedUsername == null) {
-                    throw new IOException("Bağlantı kesildi.");
-                }
-
-                // Boşluk veya boş giriş kontrolü
-                if (proposedUsername.trim().isEmpty()) {
-                    out.println(MessageUtils.formatWarning("Kullanıcı adı boş olamaz!"));
-                    isUsernameValid = false; // Döngüyü yeniden başlat
-                }
-                // Kullanıcı adı alınmış mı kontrolü
-                else if (roomHandler.isUsernameTaken(proposedUsername)) {
-                    out.println(MessageUtils.formatWarning("Bu kullanıcı adı zaten alındı!"));
-                    isUsernameValid = false;
-                }
-
-            } while (!isUsernameValid); // Geçerli bir isim alana kadar döngü
-
-            username = proposedUsername;
-            roomHandler.addUsername(username);
-            roomHandler.addToRoom("LOBBY", this);
-            game = roomHandler.game;
-
-            // Mesajları dinle
-            String message;
-            while ((message = in.readLine()) != null) {
-                if (!isAlive) {
-                    out.println("[HATA] Ölüsünüz, işlem yapamazsınız!");
-                    continue;
-                }
-                if (message.startsWith("/")) {
-                    //System.out.println("[DEBUG] Alınan komut: " + message);
-                    if (message.startsWith("/mafya ")) {
-                        handleMafiaCommand(message);
-                    } else if (message.startsWith("/ready") || message.startsWith("/start")) {
-                        if (message.startsWith("/ready")) {
-                            roomHandler.readyCount++;
-                            System.out.println("ready istegi: " + roomHandler.readyCount);
-                        } else if (message.startsWith("/start")) {
-                            roomHandler.startCount++;
-                            System.out.println("start istegi: " + roomHandler.readyCount);
-                        }
-                        roomHandler.readyCountHandle();
-                    } else if (game != null) {
-                        if (game.getCurrentPhase() == Game.Phase.NIGHT) {
-                            handleNightCommand(message);
-                        } else {
-                            handleDayCommand(message);
-                        }
-                    }
-                } else {
-                    handleGeneralMessage(message);
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Hata: " + username + " baglantisi kesildi.");
-        } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    /**
+     * Oyun referansını döndürür
+     */
+    public Game getGame() {
+        return game;
     }
 
-    private void handleDayCommand(String message) {
-        if (message.startsWith("/oyla ")) {
-            String target = message.split(" ")[1];
-            game.handleVote(username, target);
-        }
-    }
-
-    private void handleNightCommand(String message) {
-        if (message.startsWith("/oldur ") || message.startsWith("/iyilestir ")) {
-            game.handleAction(username, message);
-        }
-    }
-
+    /**
+     * Oyuncunun hayatta olup olmadığını döndürür
+     */
     public boolean isAlive() {
         return isAlive;
     }
 
-    private void handleMafiaCommand(String message) {
-        if (!isMafia()) {
-            sendMessage("Bu komutu kullanma yetkiniz yok!");
-            return;
-        }
-        String cleanMessage = message.replaceFirst("/mafya ", "");
-        // Özel mesajı MAFYA odasına gönder
-        roomHandler.broadcastToRoom("MAFYA", "🔮 [MAFYA] " + getUsername() + ": " + cleanMessage);
-    }
-
-    private void handleGeneralMessage(String message) {
-        // Genel mesajı LOBBY'e gönder
-
-        if (game.getCurrentPhase() == Game.Phase.DAY) {
-            roomHandler.broadcastToRoom("LOBBY", getUsername() + ": " + message);
-        } else {
-            sendMessage(formatError("gece mesaj gönderemezsin"));
-        }
-    }
-
+    /**
+     * Oyuncunun Mafya olup olmadığını kontrol eder
+     */
     private boolean isMafia() {
-        return game.getRole(getUsername()) instanceof Mafya;
-    }
-
-    public Game getGame() {
-        return game;
+        return game != null && game.getRole(getUsername()) instanceof Mafya;
     }
 }
