@@ -4,34 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientApplication.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/GameState.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/model/Player.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/NetworkManager.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/util/AlertUtils.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/util/StyleUtils.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LobbyView.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/LoginView.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ChatPanel.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerListView.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/application.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/dark-theme.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/css/light-theme.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/fxml/game-view.fxml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/fxml/lobby-view.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/client/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/ClientLauncher.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" afterDir="false" />
-    </list>
+    <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -63,7 +36,7 @@
   "keyToString": {
     "Application.ClientApplication.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "javafx-gui",
     "kotlin-language-version-configured": "true"
   }
 }]]></component>
