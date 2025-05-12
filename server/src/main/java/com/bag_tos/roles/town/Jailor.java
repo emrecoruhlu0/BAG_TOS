@@ -1,4 +1,3 @@
-// server/src/main/java/com/bag_tos/roles/town/Jailor.java
 package com.bag_tos.roles.town;
 
 import com.bag_tos.common.model.RoleType;

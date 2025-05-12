@@ -109,11 +109,49 @@ public class ActionPanel extends VBox {
         }
     }
 
-    /**
-     * Mafya için öldürme aksiyonu ekler
-     *
-     * @param handler Aksiyon işleyicisi
-     */
+    public void addJailAction(ActionHandler handler) {
+        HBox jailActionBox = new HBox(10);
+        jailActionBox.setAlignment(Pos.CENTER);
+
+        Label actionLabel = new Label("Hapse At:");
+
+        ComboBox<Player> targetCombo = new ComboBox<>(targetPlayers);
+        targetCombo.setPromptText("Hedef seçin");
+        targetCombo.setCellFactory(param -> new PlayerListCell());
+        targetCombo.setButtonCell(new PlayerListCell());
+
+        Button jailButton = new Button("Hapse At");
+        jailButton.getStyleClass().add("warning-button");
+        jailButton.setOnAction(e -> {
+            Player selectedTarget = targetCombo.getValue();
+            if (selectedTarget != null) {
+                handler.onAction(selectedTarget);
+                targetCombo.setValue(null);
+            }
+        });
+
+        jailActionBox.getChildren().addAll(actionLabel, targetCombo, jailButton);
+        getChildren().add(jailActionBox);
+    }
+
+    public void addExecuteAction(ActionHandler handler) {
+        HBox executeActionBox = new HBox(10);
+        executeActionBox.setAlignment(Pos.CENTER);
+
+        Label actionLabel = new Label("İnfaz Et:");
+
+        Button executeButton = new Button("İnfaz Et");
+        executeButton.getStyleClass().add("danger-button");
+        executeButton.setOnAction(e -> {
+            // Hapsedilen kişi zaten belirli olduğu için doğrudan işle
+            Player dummyPlayer = new Player("Hapsedilen");
+            handler.onAction(dummyPlayer);
+        });
+
+        executeActionBox.getChildren().addAll(actionLabel, executeButton);
+        getChildren().add(executeActionBox);
+    }
+
     public void addKillAction(ActionHandler handler) {
         HBox killActionBox = new HBox(10);
         killActionBox.setAlignment(Pos.CENTER);

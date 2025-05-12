@@ -81,6 +81,45 @@ public class RoomHandler {
         rooms.put(roomName, new ArrayList<>());
     }
 
+    public void createJailRoom(String jailor, String prisoner) {
+        String jailRoom = "JAIL_" + jailor;
+
+        // Oda yoksa oluştur
+        createRoom(jailRoom);
+
+        // Oyuncuları odaya ekle
+        players.stream()
+                .filter(p -> p.getUsername().equals(jailor) || p.getUsername().equals(prisoner))
+                .forEach(p -> addToRoom(jailRoom, p));
+
+        // Hapishane başlangıç mesajı
+        Message jailStartMessage = new Message(MessageType.GAME_STATE);
+        jailStartMessage.addData("event", "JAIL_START");
+        jailStartMessage.addData("message", "Gardiyan hücresine hoş geldiniz!");
+
+        broadcastToRoom(jailRoom, jailStartMessage);
+    }
+
+    /**
+     * Gardiyan odasını kapatır
+     */
+    public void closeJailRoom(String jailor) {
+        String jailRoom = "JAIL_" + jailor;
+
+        // Oda kapanış mesajı
+        Message jailEndMessage = new Message(MessageType.GAME_STATE);
+        jailEndMessage.addData("event", "JAIL_END");
+        jailEndMessage.addData("message", "Gece sona erdi, hapishane kapatılıyor!");
+
+        broadcastToRoom(jailRoom, jailEndMessage);
+
+        // Odayı kapat (oyuncuları çıkar)
+        List<ClientHandler> playersInRoom = new ArrayList<>(getClientsInRoom(jailRoom));
+        for (ClientHandler player : playersInRoom) {
+            removeFromRoom(jailRoom, player);
+        }
+    }
+
     /**
      * Oyuncuyu belirtilen odaya ekler
      */

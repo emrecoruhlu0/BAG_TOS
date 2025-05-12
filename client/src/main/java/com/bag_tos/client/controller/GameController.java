@@ -254,6 +254,27 @@ public class GameController {
                                 view.addSystemMessage("Oy verildi: " + target.getUsername());
                             });
                             break;
+                        case "JAIL":
+                            view.getActionPanel().addJailAction(target -> {
+                                Message actionMessage = new Message(MessageType.ACTION);
+                                ActionRequest actionRequest = new ActionRequest(ActionType.JAIL.name(), target.getUsername());
+                                actionMessage.addData("actionRequest", actionRequest);
+
+                                networkManager.sendMessage(actionMessage);
+                                view.addSystemMessage("Hapsedilecek hedef seçildi: " + target.getUsername());
+                            });
+                            break;
+
+                        case "EXECUTE":
+                            view.getActionPanel().addExecuteAction(target -> {
+                                Message actionMessage = new Message(MessageType.ACTION);
+                                ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), target.getUsername());
+                                actionMessage.addData("actionRequest", actionRequest);
+
+                                networkManager.sendMessage(actionMessage);
+                                view.addSystemMessage("İnfaz hedefi seçildi: " + target.getUsername());
+                            });
+                            break;
                     }
                 }
             }

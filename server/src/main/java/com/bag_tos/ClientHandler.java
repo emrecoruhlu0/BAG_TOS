@@ -294,6 +294,9 @@ public class ClientHandler implements Runnable {
     /**
      * Aksiyon mesajını işler
      */
+    /**
+     * Aksiyon mesajını işler
+     */
     private void handleActionCommand(Message message) {
         try {
             ActionRequest actionRequest = JsonUtils.fromJson(
@@ -314,39 +317,114 @@ public class ClientHandler implements Runnable {
                         return;
                     }
 
+                    // Mevcut faz kontrolü ve aksiyonların işlenmesi
                     if (game.getCurrentPhase() == GamePhase.NIGHT) {
-                        // Rol yetkisi kontrolü
-                        Role role = game.getRole(username);
-                        boolean authorized = false;
+                        // Gece aksiyonları
+                        if (actionType == ActionType.KILL || actionType == ActionType.HEAL ||
+                                actionType == ActionType.INVESTIGATE) {
 
-                        if (actionType == ActionType.KILL && role instanceof Mafya) {
-                            authorized = true;
-                        } else if (actionType == ActionType.HEAL && role.getRoleType() == com.bag_tos.common.model.RoleType.DOKTOR) {
-                            authorized = true;
-                        } else if (actionType == ActionType.INVESTIGATE && role.getRoleType() == com.bag_tos.common.model.RoleType.SERIF) {
-                            authorized = true;
+                            // Rol yetkisi kontrolü
+                            Role role = game.getRole(username);
+                            boolean authorized = false;
+
+                            if (actionType == ActionType.KILL && role instanceof Mafya) {
+                                authorized = true;
+                            } else if (actionType == ActionType.HEAL && role.getRoleType() == RoleType.DOKTOR) {
+                                authorized = true;
+                            } else if (actionType == ActionType.INVESTIGATE && role.getRoleType() == RoleType.SERIF) {
+                                authorized = true;
+                            }
+
+                            if (!authorized) {
+                                sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                                return;
+                            }
+
+                            // Aksiyonu kaydet
+                            game.registerNightAction(username, actionType, target);
+
+                            // Başarılı işlem bildirimi
+                            ActionResultResponse resultResponse = new ActionResultResponse(
+                                    actionTypeStr, target, "SUCCESS", "Aksiyon başarıyla gerçekleştirildi"
+                            );
+
+                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                            resultMessage.addData("actionResult", resultResponse);
+
+                            sendJsonMessage(resultMessage);
+                        } else {
+                            sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
                         }
+                    } else if (game.getCurrentPhase() == GamePhase.DAY) {
+                        // Gündüz aksiyonları
+                        if (actionType == ActionType.VOTE) {
+                            game.registerVote(username, target);
 
-                        if (!authorized) {
-                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
-                            return;
+                            // Başarılı işlem bildirimi
+                            ActionResultResponse resultResponse = new ActionResultResponse(
+                                    "VOTE", target, "SUCCESS", "Oy başarıyla kullanıldı"
+                            );
+
+                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                            resultMessage.addData("actionResult", resultResponse);
+
+                            sendJsonMessage(resultMessage);
+                        } else {
+                            sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
                         }
-
-                        // Aksiyonu kaydet
-                        game.registerNightAction(username, actionType, target);
-
-                        // Başarılı işlem bildirimi
-                        ActionResultResponse resultResponse = new ActionResultResponse(
-                                actionTypeStr, target, "SUCCESS", "Aksiyon başarıyla gerçekleştirildi"
-                        );
-
-                        Message resultMessage = new Message(MessageType.ACTION_RESULT);
-                        resultMessage.addData("actionResult", resultResponse);
-
-                        sendJsonMessage(resultMessage);
-                    } else {
-                        sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
                     }
+
+                    // BURAYA EKLEYİN: Jailor aksiyonları için olan kod
+                    // Jailor aksiyonları için
+                    if (actionType == ActionType.JAIL && game.getCurrentPhase() == GamePhase.DAY) {
+                        Role role = game.getRole(username);
+                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
+                            game.registerJailAction(username, target);
+
+                            // Başarılı işlem bildirimi
+                            ActionResultResponse resultResponse = new ActionResultResponse(
+                                    ActionType.JAIL.name(),
+                                    target,
+                                    "SUCCESS",
+                                    "Hapsetme işlemi kaydedildi. Gece fazında etkili olacak."
+                            );
+
+                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                            resultMessage.addData("actionResult", resultResponse);
+
+                            sendJsonMessage(resultMessage);
+                        } else {
+                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                        }
+                        return;
+                    }
+
+                    // İnfaz aksiyonu için
+                    if (actionType == ActionType.EXECUTE && game.getCurrentPhase() == GamePhase.NIGHT) {
+                        Role role = game.getRole(username);
+                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
+                            // Aksiyonu kaydet
+                            Map<ActionType, String> playerActions = game.getNightActions().computeIfAbsent(username, k -> new HashMap<>());
+                            playerActions.put(actionType, target);
+
+                            // Başarılı işlem bildirimi
+                            ActionResultResponse resultResponse = new ActionResultResponse(
+                                    ActionType.EXECUTE.name(),
+                                    target,
+                                    "SUCCESS",
+                                    "İnfaz işlemi kaydedildi. Gece sonunda etkili olacak."
+                            );
+
+                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                            resultMessage.addData("actionResult", resultResponse);
+
+                            sendJsonMessage(resultMessage);
+                        } else {
+                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                        }
+                        return;
+                    }
+
                 } catch (IllegalArgumentException e) {
                     sendErrorMessage("INVALID_ACTION_TYPE", "Geçersiz aksiyon tipi: " + actionTypeStr);
                 }
@@ -356,7 +434,6 @@ public class ClientHandler implements Runnable {
             sendErrorMessage("PROCESSING_ERROR", "Aksiyon komutu işlenirken hata oluştu");
         }
     }
-
     /**
      * Oylama mesajını işler
      */

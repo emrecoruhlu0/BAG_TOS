@@ -15,6 +15,7 @@ import com.bag_tos.roles.Role;
 import com.bag_tos.roles.mafia.Mafya;
 import com.bag_tos.roles.naturel.Jester;
 import com.bag_tos.roles.town.Doktor;
+import com.bag_tos.roles.town.Jailor;
 import com.bag_tos.roles.town.Serif;
 
 import java.util.*;
@@ -80,6 +81,10 @@ public class Game {
         return currentPhase;
     }
 
+    public Map<String, Map<ActionType, String>> getNightActions() {
+        return nightActions;
+    }
+
     // Oyunu başlatır ve rollere göre oda dağıtımı yapar
     public void start() {
         // Mafya oyuncularını mafya odasına ekle
@@ -112,6 +117,7 @@ public class Game {
         rolePool.add(new Mafya());
         rolePool.add(new Serif());
         rolePool.add(new Doktor());
+        rolePool.add(new Jailor());
         rolePool.add(new Jester());
 
         // Oyuncu sayısına göre ek mafya ekle
@@ -166,14 +172,36 @@ public class Game {
 
     // Gece fazını başlatır
     private void startNightPhase() {
-        currentPhase = GamePhase.NIGHT; // Faz güncelleme
-        remainingSeconds = GameConfig.NIGHT_PHASE_DURATION; // Süreyi ayarlama
-        nightActions.clear(); // Gece aksiyonlarını temizleme
+        currentPhase = GamePhase.NIGHT;
+        remainingSeconds = GameConfig.NIGHT_PHASE_DURATION;
+        nightActions.clear();
 
-        broadcastGameState(); // Oyun durumunu bildir
-        startCountdown(); // Zamanlayıcıyı başlat
-        scheduleNightActions(); // Gece aksiyonlarını zamanla
-        sendAvailableActions(); // Aksiyonları bildir
+        // Hapishane odasını kur (eğer aktifse)
+        if (jailedPlayer != null && jailorPlayer != null) {
+            roomHandler.createJailRoom(jailorPlayer, jailedPlayer);
+
+            // Hapsedilen oyuncuya bildirim
+            Message jailMessage = new Message(MessageType.GAME_STATE);
+            jailMessage.addData("event", "PLAYER_JAILED");
+            jailMessage.addData("message", "Bu gece gardiyan tarafından hapsedildiniz!");
+
+            players.stream()
+                    .filter(p -> p.getUsername().equals(jailedPlayer))
+                    .findFirst()
+                    .ifPresent(p -> p.sendJsonMessage(jailMessage));
+        }
+
+        // Oyun durumu bildirimi
+        broadcastGameState();
+
+        // Zamanlayıcıyı başlat
+        startCountdown();
+
+        // Gece aksiyonlarını zamanla
+        scheduleNightActions();
+
+        // Oyunculara uygun aksiyonları bildir
+        sendAvailableActions();
     }
 
     // Gündüz fazını başlatır
@@ -245,8 +273,13 @@ public class Game {
             }
 
             String username = player.getUsername();
-            Role role = roles.get(username);
+            // Hapsedilen oyuncu gece aksiyon yapamaz
+            if (jailedPlayer != null && jailedPlayer.equals(username) &&
+                    currentPhase == GamePhase.NIGHT) {
+                continue;
+            }
 
+            Role role = roles.get(username);
             if (role == null) {
                 continue;
             }
@@ -265,9 +298,19 @@ public class Game {
                     availableActions.add(ActionType.HEAL.name());
                 } else if (roleType == RoleType.SERIF) {
                     availableActions.add(ActionType.INVESTIGATE.name());
+                } else if (roleType == RoleType.JAILOR) {
+                    // Gardiyan gece birini hapsettiyse, infaz seçeneği sunuluyor
+                    if (jailorPlayer != null && jailorPlayer.equals(username) && jailedPlayer != null) {
+                        availableActions.add(ActionType.EXECUTE.name());
+                    }
                 }
             } else if (currentPhase == GamePhase.DAY) {
                 availableActions.add(ActionType.VOTE.name());
+
+                // Gardiyan gündüz hapsetme aksiyonu alabilir
+                if (role.getRoleType() == RoleType.JAILOR) {
+                    availableActions.add(ActionType.JAIL.name());
+                }
             }
 
             actionMessage.addData("availableActions", availableActions);
@@ -418,6 +461,10 @@ public class Game {
         // Hapishane durumunu sıfırla
         resetJailState();
 
+        if (jailorPlayer != null) {
+            roomHandler.closeJailRoom(jailorPlayer);
+        }
+
         // Kazanma durumunu kontrol et
         checkWinConditions();
     }
@@ -449,6 +496,48 @@ public class Game {
         }
     }
 
+    public void registerJailAction(String jailor, String target) {
+        // Oyuncular hayatta mı kontrolü
+        if (!alivePlayers.contains(jailor) || !alivePlayers.contains(target)) {
+            return;
+        }
+
+        // Jailor rol kontrolü
+        Role role = roles.get(jailor);
+        if (role == null || role.getRoleType() != RoleType.JAILOR) {
+            return;
+        }
+
+        // Kendi kendini hapsetme kontrolü
+        if (!GameConfig.ALLOW_SELF_ACTIONS && jailor.equals(target)) {
+            return;
+        }
+
+        // Hapis işlemi
+        jailorPlayer = jailor;
+        jailedPlayer = target;
+
+        System.out.println("[DEBUG] Hapis aksiyonu kaydedildi: " + jailor + " -> " + target);
+
+        // Sadece jailor'a bildirim
+        Message jailorMessage = new Message(MessageType.ACTION_RESULT);
+        ActionResultResponse resultResponse = new ActionResultResponse(
+                ActionType.JAIL.name(),
+                target,
+                "SUCCESS",
+                target + " adlı oyuncuyu hapsettiniz."
+        );
+        jailorMessage.addData("actionResult", resultResponse);
+
+        players.stream()
+                .filter(p -> p.getUsername().equals(jailor))
+                .findFirst()
+                .ifPresent(p -> p.sendJsonMessage(jailorMessage));
+    }
+
+    /**
+     * Oyuncuyu öldürür (nedenle birlikte)
+     */
     private void killPlayer(String targetUsername, String reason) {
         // Listeden çıkar
         alivePlayers.remove(targetUsername);
@@ -511,7 +600,6 @@ public class Game {
             }
         }
     }
-
     private void resetJailState() {
         jailedPlayer = null;
         jailorPlayer = null;

@@ -30,4 +30,6 @@ public class GameConfig {
 
     // GameConfig.java dosyasına ekleyin
     public static final boolean NOTIFY_HEALED_PLAYERS = true; // veya false
+
+    public static final boolean JAILOR_CAN_SPEAK_TO_DEAD = false; // Gardiyanın ölü oyuncularla konuşabilmesi
 }
