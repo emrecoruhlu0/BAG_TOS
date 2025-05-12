@@ -27,4 +27,7 @@ public class GameConfig {
     // Anti-hile
     public static final int MAX_INVALID_MESSAGES = 5;
     public static final int RECONNECT_TIMEOUT_SECONDS = 30;
+
+    // GameConfig.java dosyasına ekleyin
+    public static final boolean NOTIFY_HEALED_PLAYERS = true; // veya false
 }
