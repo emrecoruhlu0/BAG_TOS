@@ -1,5 +1,6 @@
 package com.bag_tos;
 
+import com.bag_tos.common.config.GameConfig;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.response.ActionResultResponse;
@@ -126,9 +127,15 @@ public class Game {
         rolePool.add(new Doktor());
         rolePool.add(new Jester());
 
-        // Ek roller (isteğe bağlı)
-        if (playerCount > 4) {
-            rolePool.add(new Mafya()); // İkinci mafya
+        // Ek roller (GameConfig'e göre)
+        int mafiaCount = Math.max(1, playerCount / GameConfig.MAX_MAFIA_RATIO);
+        for (int i = 1; i < mafiaCount; i++) {
+            rolePool.add(new Mafya()); // Ek mafya
+        }
+
+        // Maksimum oyuncu sayısı kontrolü
+        if (playerCount > GameConfig.MAX_PLAYERS) {
+            System.out.println("Uyarı: Oyuncu sayısı maksimum sınırı aştı: " + playerCount);
         }
 
         // Rol listesini karıştır
@@ -178,7 +185,7 @@ public class Game {
      */
     private void startNightPhase() {
         currentPhase = GamePhase.NIGHT;
-        remainingSeconds = 30;
+        remainingSeconds = GameConfig.NIGHT_PHASE_DURATION;
         nightActions.clear();
 
         // Oyun durumu bildirimi
@@ -199,7 +206,7 @@ public class Game {
      */
     private void startDayPhase() {
         currentPhase = GamePhase.DAY;
-        remainingSeconds = 30;
+        remainingSeconds = GameConfig.DAY_PHASE_DURATION;
         votes.clear();
 
         // Oyun durumu bildirimi
@@ -228,7 +235,12 @@ public class Game {
             Role role = roles.get(username);
             String roleName = (role != null) ? role.getName() : "UNKNOWN";
 
-            playerInfoList.add(new PlayerInfo(username, alive, roleName));
+            // Rol bilgisini sadece oyuncunun kendisine göster (veya ölünce göster seçeneği)
+            playerInfoList.add(new PlayerInfo(
+                    username,
+                    alive,
+                    GameConfig.REVEAL_ROLES_ON_DEATH && !alive ? roleName : "UNKNOWN"
+            ));
         }
 
         // Oyun durumu yanıtı
@@ -257,7 +269,7 @@ public class Game {
 
         // Tüm oyunculara gönder
         for (ClientHandler player : players) {
-            if (alivePlayers.contains(player.getUsername())) {
+            if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
                 player.sendJsonMessage(gameStateMessage);
             }
         }
@@ -304,8 +316,11 @@ public class Game {
             // Hedef listesi ekle
             List<String> possibleTargets = new ArrayList<>();
             for (ClientHandler target : players) {
-                if (alivePlayers.contains(target.getUsername()) && !target.getUsername().equals(username)) {
-                    possibleTargets.add(target.getUsername());
+                String targetUsername = target.getUsername();
+                // Kendi üzerinde aksiyon yapılabilir mi kontrolü
+                if (alivePlayers.contains(targetUsername) &&
+                        (GameConfig.ALLOW_SELF_ACTIONS || !targetUsername.equals(username))) {
+                    possibleTargets.add(targetUsername);
                 }
             }
             actionMessage.addData("possibleTargets", possibleTargets);
@@ -346,7 +361,7 @@ public class Game {
         timer.schedule(() -> {
             processNightActions();
             startDayPhase();
-        }, 30, TimeUnit.SECONDS);
+        }, GameConfig.NIGHT_PHASE_DURATION, TimeUnit.SECONDS);
     }
 
     /**
@@ -356,7 +371,7 @@ public class Game {
         timer.schedule(() -> {
             processVotes();
             startNightPhase();
-        }, 30, TimeUnit.SECONDS);
+        }, GameConfig.DAY_PHASE_DURATION, TimeUnit.SECONDS);
     }
 
     /**
@@ -382,6 +397,11 @@ public class Game {
             return;
         }
 
+        // Kendi üzerinde aksiyon kontrolü
+        if (!GameConfig.ALLOW_SELF_ACTIONS && username.equals(target)) {
+            return;
+        }
+
         // Aksiyon kaydı
         Map<ActionType, String> playerActions = nightActions.computeIfAbsent(username, k -> new HashMap<>());
         playerActions.put(actionType, target);
@@ -400,6 +420,11 @@ public class Game {
 
         // Hedef hayatta değilse işleme
         if (!alivePlayers.contains(target)) {
+            return;
+        }
+
+        // Kendi kendine oy kontrolü
+        if (!GameConfig.ALLOW_SELF_ACTIONS && username.equals(target)) {
             return;
         }
 
@@ -425,7 +450,7 @@ public class Game {
 
         // Tüm oyunculara bildir
         for (ClientHandler player : players) {
-            if (alivePlayers.contains(player.getUsername())) {
+            if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
                 player.sendJsonMessage(voteMessage);
             }
         }
@@ -477,7 +502,7 @@ public class Game {
 
             // Tüm oyunculara bildir
             for (ClientHandler player : players) {
-                if (alivePlayers.contains(player.getUsername())) {
+                if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
                     player.sendJsonMessage(protectionMessage);
                 }
             }
@@ -509,6 +534,15 @@ public class Game {
             deathMessage.addData("actionResult", resultResponse);
             deathMessage.addData("message", "Öldürüldünüz!");
             deathMessage.addData("alive", false);
+
+            // Öldürülen oyuncuya rolünü göster seçeneği
+            if (GameConfig.REVEAL_ROLES_ON_DEATH) {
+                Role role = roles.get(targetUsername);
+                if (role != null) {
+                    deathMessage.addData("role", role.getName());
+                }
+            }
+
             target.sendJsonMessage(deathMessage);
 
             // Diğer oyunculara bildir
@@ -517,8 +551,18 @@ public class Game {
             killMessage.addData("target", targetUsername);
             killMessage.addData("message", targetUsername + " öldürüldü!");
 
+            // Öldürülen oyuncunun rolünü göster seçeneği
+            if (GameConfig.REVEAL_ROLES_ON_DEATH) {
+                Role role = roles.get(targetUsername);
+                if (role != null) {
+                    killMessage.addData("role", role.getName());
+                    killMessage.addData("roleRevealed", true);
+                }
+            }
+
             for (ClientHandler player : players) {
-                if (!player.getUsername().equals(targetUsername) && alivePlayers.contains(player.getUsername())) {
+                if (!player.getUsername().equals(targetUsername) &&
+                        (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT)) {
                     player.sendJsonMessage(killMessage);
                 }
             }
@@ -585,6 +629,15 @@ public class Game {
             executionMessage.addData("actionResult", resultResponse);
             executionMessage.addData("message", "Asıldınız!");
             executionMessage.addData("alive", false);
+
+            // Asılan oyuncuya rolünü göster seçeneği
+            if (GameConfig.REVEAL_ROLES_ON_DEATH) {
+                Role role = roles.get(playerToExecute);
+                if (role != null) {
+                    executionMessage.addData("role", role.getName());
+                }
+            }
+
             target.sendJsonMessage(executionMessage);
         }
 
@@ -595,8 +648,18 @@ public class Game {
         executionMessage.addData("message", playerToExecute + " asıldı!");
         executionMessage.addData("votes", voteDetails);  // Oy detaylarını da gönder
 
+        // Asılan oyuncunun rolünü göster seçeneği
+        if (GameConfig.REVEAL_ROLES_ON_DEATH) {
+            Role role = roles.get(playerToExecute);
+            if (role != null) {
+                executionMessage.addData("role", role.getName());
+                executionMessage.addData("roleRevealed", true);
+            }
+        }
+
         for (ClientHandler player : players) {
-            if (!player.getUsername().equals(playerToExecute) && alivePlayers.contains(player.getUsername())) {
+            if (!player.getUsername().equals(playerToExecute) &&
+                    (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT)) {
                 player.sendJsonMessage(executionMessage);
             }
         }
@@ -611,7 +674,7 @@ public class Game {
         noExecutionMessage.addData("message", "Bugün kimse asılmadı.");
 
         for (ClientHandler player : players) {
-            if (alivePlayers.contains(player.getUsername())) {
+            if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
                 player.sendJsonMessage(noExecutionMessage);
             }
         }

@@ -10,4 +10,5 @@ module com.bag_tos.common {
     exports com.bag_tos.common.message.response;
     exports com.bag_tos.common.model;
     exports com.bag_tos.common.util;
+    exports com.bag_tos.common.config;
 }

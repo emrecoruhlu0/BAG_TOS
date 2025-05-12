@@ -1,6 +1,7 @@
 package com.bag_tos.client.view.components;
 
 import com.bag_tos.client.model.Player;
+import com.bag_tos.common.config.GameConfig;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -15,6 +16,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Oyun içi aksiyonları gösteren panel
@@ -67,10 +69,43 @@ public class ActionPanel extends VBox {
      */
     public void setAlivePlayers(List<Player> players) {
         targetPlayers.clear();
-        if (players != null) {
-            players.stream()
+
+        if (players != null && !players.isEmpty()) {
+            // Oyuncu listesini konsola yazdır (hata ayıklama)
+            System.out.println("Hedefler ekleniyor, oyuncu sayısı: " + players.size());
+            for (Player p : players) {
+                System.out.println("Oyuncu: " + p.getUsername() + ", Hayatta: " + p.isAlive());
+            }
+
+            // Canlı oyuncuları ekle
+            List<Player> alivePlayers = players.stream()
                     .filter(Player::isAlive)
-                    .forEach(targetPlayers::add);
+                    .collect(Collectors.toList());
+
+            targetPlayers.addAll(alivePlayers);
+
+            // Hedef listesini kontrol et
+            System.out.println("Eklenen hedef sayısı: " + targetPlayers.size());
+        } else {
+            System.out.println("UYARI: Oyuncu listesi boş!");
+        }
+    }
+
+    /**
+     * Sadece yaşayan oyuncuları hedef listesine ekler, kendisini filtreler
+     *
+     * @param players Tüm oyuncular
+     * @param currentUsername Mevcut oyuncunun kullanıcı adı
+     */
+    public void setAlivePlayers(List<Player> players, String currentUsername) {
+        targetPlayers.clear();
+        if (players != null) {
+            List<Player> filteredPlayers = players.stream()
+                    .filter(Player::isAlive)
+                    .filter(p -> !p.getUsername().equals(currentUsername))
+                    .collect(Collectors.toList());
+
+            targetPlayers.addAll(filteredPlayers);
         }
     }
 
@@ -196,6 +231,13 @@ public class ActionPanel extends VBox {
 
         investigateActionBox.getChildren().addAll(actionLabel, targetCombo, investigateButton);
         getChildren().add(investigateActionBox);
+    }
+
+    /**
+     * Hedef listesindeki oyuncu sayısını döndürür
+     */
+    public int getTargetCount() {
+        return targetPlayers.size();
     }
 
     /**

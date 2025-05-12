@@ -6,6 +6,7 @@ import com.bag_tos.client.network.MessageHandler;
 import com.bag_tos.client.network.NetworkManager;
 import com.bag_tos.client.util.AlertUtils;
 import com.bag_tos.client.view.GameView;
+import com.bag_tos.common.config.GameConfig;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.request.ActionRequest;
@@ -43,6 +44,13 @@ public class GameController {
         // Genel sohbet mesajı gönderme
         view.getChatPanel().setOnSendMessage(message -> {
             if (!message.isEmpty()) {
+                // Gece fazında genel sohbeti devre dışı bırak
+                if (gameState.getCurrentPhase() == GameState.Phase.NIGHT &&
+                        GameConfig.DISABLE_CHAT_AT_NIGHT) {
+                    view.addSystemMessage("Gece fazında genel sohbette konuşamazsınız!");
+                    return;
+                }
+
                 // Sohbet mesajı için Message nesnesi oluştur
                 Message chatMessage = new Message(MessageType.CHAT);
                 ChatRequest chatRequest = new ChatRequest(message, "LOBBY");
@@ -78,6 +86,10 @@ public class GameController {
     private void setupActionHandlers() {
         view.getActionPanel().clearActions();
 
+        System.out.println("setupActionHandlers çağrıldı");
+        System.out.println("Faz: " + gameState.getCurrentPhase() + ", Rol: " + gameState.getCurrentRole());
+        System.out.println("Hedef sayısı: " + view.getActionPanel().getTargetCount());
+
         // Rol ve faza göre aksiyonları yapılandır
         String role = gameState.getCurrentRole();
         GameState.Phase phase = gameState.getCurrentPhase();
@@ -86,6 +98,13 @@ public class GameController {
             if (role.equals("Mafya")) {
                 // Mafya öldürme aksiyonu
                 view.getActionPanel().addKillAction(target -> {
+                    // Kendi üzerinde aksiyon kontrolü
+                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                            target.getUsername().equals(gameState.getCurrentUsername())) {
+                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                        return;
+                    }
+
                     // Öldürme aksiyonu için Message nesnesi oluştur
                     Message actionMessage = new Message(MessageType.ACTION);
                     ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
@@ -97,6 +116,13 @@ public class GameController {
             } else if (role.equals("Doktor")) {
                 // Doktor iyileştirme aksiyonu
                 view.getActionPanel().addHealAction(target -> {
+                    // Kendi üzerinde aksiyon kontrolü
+                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                            target.getUsername().equals(gameState.getCurrentUsername())) {
+                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                        return;
+                    }
+
                     // İyileştirme aksiyonu için Message nesnesi oluştur
                     Message actionMessage = new Message(MessageType.ACTION);
                     ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
@@ -108,6 +134,13 @@ public class GameController {
             } else if (role.equals("Serif")) {
                 // Şerif araştırma aksiyonu
                 view.getActionPanel().addInvestigateAction(target -> {
+                    // Kendi üzerinde aksiyon kontrolü
+                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                            target.getUsername().equals(gameState.getCurrentUsername())) {
+                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                        return;
+                    }
+
                     // Araştırma aksiyonu için Message nesnesi oluştur
                     Message actionMessage = new Message(MessageType.ACTION);
                     ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
@@ -120,6 +153,13 @@ public class GameController {
         } else if (phase == GameState.Phase.DAY) {
             // Gündüz fazında oylamaya izin ver
             view.getActionPanel().addVoteAction(target -> {
+                // Kendi kendine oy kontrolü
+                if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                    view.addSystemMessage("Kendinize oy veremezsiniz!");
+                    return;
+                }
+
                 // Oylama aksiyonu için Message nesnesi oluştur
                 Message voteMessage = new Message(MessageType.VOTE);
                 VoteRequest voteRequest = new VoteRequest(target.getUsername());
@@ -135,13 +175,26 @@ public class GameController {
     public void updateActions(List<String> availableActions) {
         Platform.runLater(() -> {
             view.getActionPanel().clearActions();
-            view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+
+            // Oyuncu hedeflerini ayarla (kendini hariç tut)
+            if (!GameConfig.ALLOW_SELF_ACTIONS) {
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), gameState.getCurrentUsername());
+            } else {
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+            }
 
             if (availableActions != null) {
                 for (String action : availableActions) {
                     switch (action) {
                         case "KILL":
                             view.getActionPanel().addKillAction(target -> {
+                                // Kendi üzerinde aksiyon kontrolü
+                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                    return;
+                                }
+
                                 Message actionMessage = new Message(MessageType.ACTION);
                                 ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
                                 actionMessage.addData("actionRequest", actionRequest);
@@ -152,6 +205,13 @@ public class GameController {
                             break;
                         case "HEAL":
                             view.getActionPanel().addHealAction(target -> {
+                                // Kendi üzerinde aksiyon kontrolü
+                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                    return;
+                                }
+
                                 Message actionMessage = new Message(MessageType.ACTION);
                                 ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
                                 actionMessage.addData("actionRequest", actionRequest);
@@ -162,6 +222,13 @@ public class GameController {
                             break;
                         case "INVESTIGATE":
                             view.getActionPanel().addInvestigateAction(target -> {
+                                // Kendi üzerinde aksiyon kontrolü
+                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                    return;
+                                }
+
                                 Message actionMessage = new Message(MessageType.ACTION);
                                 ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
                                 actionMessage.addData("actionRequest", actionRequest);
@@ -172,6 +239,13 @@ public class GameController {
                             break;
                         case "VOTE":
                             view.getActionPanel().addVoteAction(target -> {
+                                // Kendi kendine oy kontrolü
+                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                                    view.addSystemMessage("Kendinize oy veremezsiniz!");
+                                    return;
+                                }
+
                                 Message voteMessage = new Message(MessageType.VOTE);
                                 VoteRequest voteRequest = new VoteRequest(target.getUsername());
                                 voteMessage.addData("voteRequest", voteRequest);
@@ -188,41 +262,105 @@ public class GameController {
 
     public void updateUI() {
         Platform.runLater(() -> {
-            // Faz bilgisini güncelle
-            view.updatePhase(gameState.getCurrentPhase());
+            updatePhaseDisplay();
+            updateRoleDisplay();
+            updatePlayerListDisplay();
+            updateTimeDisplay();
+            updateActionControls();
+            updateChatControls();
+        });
+    }
 
-            // Rol bilgisini güncelle
-            view.updateRole(gameState.getCurrentRole());
+    // Her bileşen için ayrı güncelleme metodları
+    private void updatePhaseDisplay() {
+        view.updatePhase(gameState.getCurrentPhase());
+    }
 
-            // Oyuncu listesini güncelle
-            view.getPlayerListView().updatePlayers(gameState.getPlayers());
+    private void updateRoleDisplay() {
+        view.updateRole(gameState.getCurrentRole());
+    }
 
-            // Kalan zamanı güncelle
+    private void updatePlayerListDisplay() {
+        view.getPlayerListView().updatePlayers(gameState.getPlayers());
+    }
+
+    private void updateTimeDisplay() {
+        view.updateTime(gameState.getRemainingTime());
+    }
+
+    private void updateActionControls() {
+        // Aksiyon panelini güncelle
+        setupActionHandlers();
+    }
+
+    private void updateChatControls() {
+        // Gece/gündüz durumuna göre sohbet kontrollerini güncelle
+        boolean isNight = gameState.getCurrentPhase() == GameState.Phase.NIGHT;
+
+        // Gece fazında genel sohbeti devre dışı bırak
+        if (isNight && GameConfig.DISABLE_CHAT_AT_NIGHT) {
+            view.getChatPanel().getMessageField().setDisable(true);
+            view.getChatPanel().getSendButton().setDisable(true);
+        } else {
+            view.getChatPanel().getMessageField().setDisable(false);
+            view.getChatPanel().getSendButton().setDisable(false);
+        }
+
+        // Mafya sohbeti güncelleme
+        boolean isMafia = gameState.getCurrentRole().equals("Mafya");
+        view.getMafiaChatPanel().getMessageField().setDisable(!isMafia);
+        view.getMafiaChatPanel().getSendButton().setDisable(!isMafia);
+
+        // Ölü oyuncu kontrolü
+        if (!gameState.isAlive() && !GameConfig.ALLOW_DEAD_CHAT) {
+            view.getChatPanel().getMessageField().setDisable(true);
+            view.getChatPanel().getSendButton().setDisable(true);
+            view.getMafiaChatPanel().getMessageField().setDisable(true);
+            view.getMafiaChatPanel().getSendButton().setDisable(true);
+        }
+    }
+
+    /**
+     * Sadece süre göstergesini günceller
+     */
+    public void updateTimeOnly() {
+        Platform.runLater(() -> {
+            // Sadece kalan zamanı güncelle, diğer UI öğeleri aynı kalır
             view.updateTime(gameState.getRemainingTime());
+        });
+    }
 
-            // Aksiyonları güncelle (temel aksiyon yapılandırması)
-            setupActionHandlers();
+    /**
+     * Sadece oyuncu listesini günceller
+     */
+    public void updatePlayerListOnly() {
+        Platform.runLater(() -> {
+            // Sadece oyuncu listesini güncelle
+            view.getPlayerListView().updatePlayers(gameState.getPlayers());
+        });
+    }
 
-            // Mafya sekmesini role göre etkinleştir/devre dışı bırak
-            if (gameState.getCurrentRole().equals("Mafya")) {
-                // Mafya sekmesini etkinleştir
-                view.getMafiaChatPanel().getMessageField().setDisable(false);
-                view.getMafiaChatPanel().getSendButton().setDisable(false);
+    /**
+     * Sadece aksiyon panelini günceller
+     */
+    public void updateActionsOnly() {
+        Platform.runLater(() -> {
+            // Debug log
+            System.out.println("updateActionsOnly çağrıldı");
+            System.out.println("Oyuncu sayısı: " + gameState.getPlayers().size());
+
+            // Aksiyon panelini temizle
+            view.getActionPanel().clearActions();
+
+            // Önce oyuncu listesini ayarla
+            if (!GameConfig.ALLOW_SELF_ACTIONS) {
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), gameState.getCurrentUsername());
             } else {
-                // Mafya sekmesini devre dışı bırak
-                view.getMafiaChatPanel().getMessageField().setDisable(true);
-                view.getMafiaChatPanel().getSendButton().setDisable(true);
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers());
             }
 
-            // Oyuncu ölüyse aksiyonları devre dışı bırak
-            if (!gameState.isAlive()) {
-                view.getActionPanel().clearActions();
-                view.getChatPanel().getMessageField().setDisable(true);
-                view.getChatPanel().getSendButton().setDisable(true);
-                view.getMafiaChatPanel().getMessageField().setDisable(true);
-                view.getMafiaChatPanel().getSendButton().setDisable(true);
-                view.addSystemMessage("Ölü olduğunuz için aksiyon yapamazsınız!");
-            }
+            // Sonra aksiyonları yapılandır
+            setupActionHandlers();
         });
     }
 

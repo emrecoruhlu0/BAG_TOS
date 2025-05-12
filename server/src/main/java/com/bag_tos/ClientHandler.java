@@ -1,5 +1,6 @@
 package com.bag_tos;
 
+import com.bag_tos.common.config.GameConfig;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.request.*;
@@ -25,6 +26,10 @@ public class ClientHandler implements Runnable {
     private RoomHandler roomHandler;
     private Game game;
     private boolean isAlive = true;
+
+    // Anti-hile
+    private int invalidMessageCount = 0;
+    private long lastReconnectTime = 0;
 
     /**
      * Yeni istemci bağlantısı oluşturur
@@ -71,18 +76,34 @@ public class ClientHandler implements Runnable {
                             processMessage(message);
                         } else {
                             sendErrorMessage("INVALID_FORMAT", "Geçersiz JSON formatı");
+                            incrementInvalidMessageCount();
                         }
                     } catch (Exception e) {
                         sendErrorMessage("PARSE_ERROR", "JSON ayrıştırma hatası: " + e.getMessage());
+                        incrementInvalidMessageCount();
                     }
                 } else {
                     sendErrorMessage("INVALID_FORMAT", "Geçersiz mesaj formatı, JSON bekleniyor");
+                    incrementInvalidMessageCount();
                 }
             }
 
         } catch (IOException e) {
             System.out.println("Hata: " + (username != null ? username : "Bilinmeyen kullanıcı") + " bağlantısı kesildi.");
         } finally {
+            cleanup();
+        }
+    }
+
+    /**
+     * Geçersiz mesaj sayacını artırır ve gerekirse oyuncuyu atar
+     */
+    private void incrementInvalidMessageCount() {
+        invalidMessageCount++;
+
+        if (invalidMessageCount > GameConfig.MAX_INVALID_MESSAGES) {
+            // Oyuncuyu at
+            sendErrorMessage("TOO_MANY_INVALID_MESSAGES", "Çok fazla geçersiz mesaj gönderdiniz. Bağlantınız kesilecek.");
             cleanup();
         }
     }
@@ -136,7 +157,13 @@ public class ClientHandler implements Runnable {
                 if (proposedUsername == null || proposedUsername.trim().isEmpty()) {
                     sendErrorMessage("AUTH_ERROR", "Kullanıcı adı boş olamaz!");
                 } else if (roomHandler.isUsernameTaken(proposedUsername)) {
-                    sendErrorMessage("AUTH_ERROR", "Bu kullanıcı adı zaten alındı!");
+                    // Yeniden bağlanma kontrolü
+                    if (checkReconnectTimeout()) {
+                        sendErrorMessage("AUTH_ERROR", "Bu kullanıcı adı zaten alındı! " +
+                                GameConfig.RECONNECT_TIMEOUT_SECONDS + " saniye bekleyin.");
+                    } else {
+                        sendErrorMessage("AUTH_ERROR", "Bu kullanıcı adı zaten alındı!");
+                    }
                 } else {
                     isUsernameValid = true;
                 }
@@ -151,14 +178,32 @@ public class ClientHandler implements Runnable {
     }
 
     /**
+     * Yeniden bağlanma zaman aşımını kontrol eder
+     */
+    private boolean checkReconnectTimeout() {
+        long currentTime = System.currentTimeMillis() / 1000; // Saniye cinsinden mevcut zaman
+
+        if (lastReconnectTime > 0 &&
+                (currentTime - lastReconnectTime) < GameConfig.RECONNECT_TIMEOUT_SECONDS) {
+            return true; // Zaman aşımı henüz dolmadı
+        }
+
+        // Yeni zaman kaydı
+        lastReconnectTime = currentTime;
+        return false;
+    }
+
+    /**
      * Gelen JSON mesajını işler
      */
     private void processMessage(Message message) {
         try {
             // Oyuncu ölü ise, sadece belirli mesajlara izin ver
             if (!isAlive && message.getType() != MessageType.CHAT) {
-                sendErrorMessage("FORBIDDEN", "Ölüsünüz, işlem yapamazsınız!");
-                return;
+                if (!GameConfig.ALLOW_DEAD_CHAT) {
+                    sendErrorMessage("FORBIDDEN", "Ölüsünüz, işlem yapamazsınız!");
+                    return;
+                }
             }
 
             // Mesaj tipine göre işle
@@ -263,6 +308,12 @@ public class ClientHandler implements Runnable {
                 try {
                     ActionType actionType = ActionType.valueOf(actionTypeStr);
 
+                    // Kendi üzerinde aksiyon kontrolü
+                    if (!GameConfig.ALLOW_SELF_ACTIONS && target.equals(username)) {
+                        sendErrorMessage("FORBIDDEN", "Kendiniz üzerinde aksiyon yapamazsınız!");
+                        return;
+                    }
+
                     if (game.getCurrentPhase() == GamePhase.NIGHT) {
                         // Rol yetkisi kontrolü
                         Role role = game.getRole(username);
@@ -319,6 +370,12 @@ public class ClientHandler implements Runnable {
             if (voteRequest != null) {
                 String target = voteRequest.getTarget();
 
+                // Kendi kendine oy kontrolü
+                if (!GameConfig.ALLOW_SELF_ACTIONS && target.equals(username)) {
+                    sendErrorMessage("FORBIDDEN", "Kendinize oy veremezsiniz!");
+                    return;
+                }
+
                 if (game.getCurrentPhase() == GamePhase.DAY) {
                     game.registerVote(username, target);
 
@@ -354,6 +411,19 @@ public class ClientHandler implements Runnable {
             if (chatRequest != null) {
                 String chatMessage = chatRequest.getMessage();
                 String room = chatRequest.getRoom();
+
+                // Ölü oyuncular için sohbet kontrolü
+                if (!isAlive && !GameConfig.ALLOW_DEAD_CHAT) {
+                    sendErrorMessage("FORBIDDEN", "Ölü oyuncular sohbet edemez!");
+                    return;
+                }
+
+                // Gece fazı kontrolü
+                if (room.equals("LOBBY") && game.getCurrentPhase() == GamePhase.NIGHT &&
+                        GameConfig.DISABLE_CHAT_AT_NIGHT) {
+                    sendErrorMessage("NIGHT_CHAT_DISABLED", "Gece fazında genel sohbette konuşamazsınız!");
+                    return;
+                }
 
                 if ("MAFIA".equals(room) && isMafia()) {
                     // Mafya sohbeti

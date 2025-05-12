@@ -33,6 +33,7 @@ public class GameState {
     private StringProperty availableAction = new SimpleStringProperty("");
     private BooleanProperty alive = new SimpleBooleanProperty(true);
     private IntegerProperty remainingTime = new SimpleIntegerProperty(0);
+    private String currentUsername;
 
     // Sunucudan gelen ek bilgileri saklamak için genel bir yapı
     private Map<String, Object> clientData = new HashMap<>();
@@ -345,6 +346,14 @@ public class GameState {
      */
     public Object getData(String key) {
         return clientData.get(key);
+    }
+
+    public void setCurrentUsername(String username) {
+        this.currentUsername = username;
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
     }
 
     /**

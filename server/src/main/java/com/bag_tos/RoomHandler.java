@@ -1,5 +1,6 @@
 package com.bag_tos;
 
+import com.bag_tos.common.config.GameConfig;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.response.ChatMessageResponse;
@@ -26,9 +27,6 @@ public class RoomHandler {
 
     // Aktif kullanıcı adları
     private Set<String> activeUsernames;
-
-    // Minimum oyuncu sayısı
-    private static final int MIN_PLAYERS = 4;
 
     /**
      * RoomHandler oluşturur ve temel odaları kurar
@@ -131,7 +129,7 @@ public class RoomHandler {
         // Katılım mesajı
         Message joinMessage = new Message(MessageType.PLAYER_JOIN);
         joinMessage.addData("playerJoin", joinResponse);
-        joinMessage.addData("message", username + " lobiye katıldı! (" + players.size() + "/4)");
+        joinMessage.addData("message", username + " lobiye katıldı! (" + players.size() + "/" + GameConfig.MIN_PLAYERS + ")");
 
         // Tüm oyunculara bildir
         broadcastToRoom("LOBBY", joinMessage);
@@ -156,7 +154,7 @@ public class RoomHandler {
         // Ayrılma mesajı
         Message leaveMessage = new Message(MessageType.PLAYER_LEAVE);
         leaveMessage.addData("playerLeave", leaveResponse);
-        leaveMessage.addData("message", username + " lobiden ayrıldı! (" + players.size() + "/4)");
+        leaveMessage.addData("message", username + " lobiden ayrıldı! (" + players.size() + "/" + GameConfig.MIN_PLAYERS + ")");
 
         // Tüm oyunculara bildir
         broadcastToRoom("LOBBY", leaveMessage);
@@ -166,6 +164,23 @@ public class RoomHandler {
      * Sohbet mesajını odadaki tüm oyunculara bildirir
      */
     public void broadcastChatToRoom(String roomName, String sender, String chatContent, String chatRoom) {
+        // Gece fazında genel sohbeti kontrol et
+        if (gameStarted && "LOBBY".equals(chatRoom) && game.getCurrentPhase() == GamePhase.NIGHT &&
+                GameConfig.DISABLE_CHAT_AT_NIGHT) {
+            // Gece fazında mesaj gönderme yetkisi yok, sadece göndericiye hata bildirimi
+            Message errorMessage = new Message(MessageType.ERROR);
+            errorMessage.addData("code", "NIGHT_CHAT_DISABLED");
+            errorMessage.addData("message", "Gece fazında genel sohbette konuşamazsınız!");
+
+            // Sadece göndericiye hata bildir
+            players.stream()
+                    .filter(p -> p.getUsername().equals(sender))
+                    .findFirst()
+                    .ifPresent(p -> p.sendJsonMessage(errorMessage));
+
+            return;
+        }
+
         // Sohbet mesajı oluştur
         ChatMessageResponse chatResponse = new ChatMessageResponse(
                 sender,
@@ -229,13 +244,13 @@ public class RoomHandler {
      * Oyun başlatma koşullarını kontrol eder
      */
     public void checkGameStart() {
-        if (readyCount >= MIN_PLAYERS && startCount >= 1) {
+        if (readyCount >= GameConfig.MIN_PLAYERS && startCount >= 1) {
             startGame();
-        } else if (readyCount < MIN_PLAYERS && startCount >= 1) {
+        } else if (readyCount < GameConfig.MIN_PLAYERS && startCount >= 1) {
             // Yetersiz oyuncu hatası mesajı
             Message errorMessage = new Message(MessageType.ERROR);
             errorMessage.addData("code", "INSUFFICIENT_PLAYERS");
-            errorMessage.addData("message", "Oyun başlatmak için en az " + MIN_PLAYERS + " hazır oyuncu gerekiyor");
+            errorMessage.addData("message", "Oyun başlatmak için en az " + GameConfig.MIN_PLAYERS + " hazır oyuncu gerekiyor");
 
             // Tüm oyunculara bildir
             broadcastToRoom("LOBBY", errorMessage);

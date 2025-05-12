@@ -45,38 +45,106 @@ public class MessageHandler implements NetworkManager.MessageListener {
             switch (message.getType()) {
                 case GAME_STATE:
                     handleGameStateMessage(message);
+
+                    // Sadece süre güncellemesi mi kontrol et
+                    Object remainingTimeObj = message.getDataValue("remainingTime");
+                    if (remainingTimeObj != null &&
+                            message.getDataValue("event") == null &&
+                            message.getDataValue("gameOver") == null) {
+                        // Sadece süre güncellemesi
+                        updateTimeOnly();
+                    } else {
+                        // Tam oyun durumu güncellemesi
+                        updateFullUI();
+                    }
                     break;
+
                 case PLAYER_JOIN:
                     handlePlayerJoinMessage(message);
+                    updatePlayersOnly();
                     break;
+
                 case PLAYER_LEAVE:
                     handlePlayerLeaveMessage(message);
+                    updatePlayersOnly();
                     break;
+
                 case ROLE_ASSIGNMENT:
                     handleRoleAssignmentMessage(message);
+                    // Rol değiştiğinde UI'ı tam güncelle
+                    updateFullUI();
                     break;
+
                 case AVAILABLE_ACTIONS:
                     handleAvailableActionsMessage(message);
+                    updateActionsOnly();
                     break;
+
                 case ACTION_RESULT:
                     handleActionResultMessage(message);
+                    // Aksiyon sonuçları oyun durumunu etkileyebilir
+                    updateFullUI();
                     break;
+
                 case CHAT_MESSAGE:
                     handleChatMessage(message);
+                    // Sohbet için UI güncellemesi gerekmez, mesajı sadece ekleriz
                     break;
+
                 case ERROR:
                     handleErrorMessage(message);
+                    // Hata mesajları için UI güncellemesi gerekmez
                     break;
+
                 default:
                     System.out.println("Bilinmeyen mesaj tipi: " + message.getType());
+                    // Bilinmeyen mesaj tipleri için tam güncelleme yap
+                    updateFullUI();
             }
         } catch (Exception e) {
             System.err.println("Mesaj işlenirken hata oluştu: " + e.getMessage());
             e.printStackTrace();
         }
+    }
 
-        // UI güncellemelerini yap
-        updateUI();
+    /**
+     * Sadece süre güncellemesi yapar
+     */
+    private void updateTimeOnly() {
+        if (gameController != null) {
+            gameController.updateTimeOnly();
+        }
+    }
+
+    /**
+     * Sadece oyuncu listesini günceller
+     */
+    private void updatePlayersOnly() {
+        if (gameController != null) {
+            gameController.updatePlayerListOnly();
+        } else if (lobbyController != null) {
+            lobbyController.updatePlayerList();
+        }
+    }
+
+    /**
+     * Sadece aksiyon panelini günceller
+     */
+    private void updateActionsOnly() {
+        if (gameController != null) {
+            gameController.updateActionsOnly();
+        }
+    }
+
+    /**
+     * Tam UI güncellemesi yapar
+     */
+    private void updateFullUI() {
+        if (gameController != null) {
+            gameController.updateUI();
+        } else if (lobbyController != null) {
+            lobbyController.updatePlayerList();
+        }
     }
 
     private void handleGameStateMessage(Message message) {
@@ -148,6 +216,27 @@ public class MessageHandler implements NetworkManager.MessageListener {
             String state = (String) message.getDataValue("state");
             if (state != null && state.equals("GAME_STARTING") && lobbyController != null) {
                 lobbyController.startGame();
+
+                // Oyun başlatıldığında kısa bir gecikme ile aksiyonları güncelle
+                new java.util.Timer().schedule(
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                Platform.runLater(() -> {
+                                    // GameController oluşturuldu mu kontrol et
+                                    if (gameController != null) {
+                                        // Debug log
+                                        System.out.println("Oyun başladı - aksiyonları güncellemek için zamanlı görev çalışıyor");
+                                        // Önce tam güncelleme yap
+                                        gameController.updateUI();
+                                        // Sonra özellikle aksiyonları güncelle
+                                        gameController.updateActionsOnly();
+                                    }
+                                });
+                            }
+                        },
+                        1000 // 1 saniye gecikme
+                );
             }
 
             // Oyun sonu kontrolü
@@ -162,7 +251,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
-
     private void handleGameEvent(String event, Message message) {
         switch (event) {
             case "PLAYER_KILLED":
