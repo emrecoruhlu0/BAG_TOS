@@ -54,9 +54,13 @@ public class MessageHandler implements NetworkManager.MessageListener {
                         // Sadece süre güncellemesi
                         updateTimeOnly();
                     } else {
-                        // Tam oyun durumu güncellemesi
-                        updateFullUI();
+                        // TAM OYUN DURUMU GÜNCELLEMESİ
+                        updateFullUI();  // Bu metot çağrısı faz değişikliklerinde de olmalı
                     }
+                    break;
+
+                case PHASE_CHANGE:  // YENİ EKLENEN
+                    handlePhaseChangeMessage(message);
                     break;
 
                 case PLAYER_JOIN:
@@ -156,9 +160,10 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 gameStateResponse = JsonUtils.fromJson(jsonStr, GameStateResponse.class);
             }
 
-            // Faz bilgisini güncelle
+            // Faz bilgisini güncelle - BU KISIM ÖNEMLİ
             String phase = (String) message.getDataValue("phase");
             if (phase != null) {
+                System.out.println("Sunucudan faz güncellemesi: " + phase);
                 switch (phase) {
                     case "NIGHT":
                         gameState.setCurrentPhase(GameState.Phase.NIGHT);
@@ -227,6 +232,8 @@ public class MessageHandler implements NetworkManager.MessageListener {
                                     if (gameController != null) {
                                         // Debug log
                                         System.out.println("Oyun başladı - aksiyonları güncellemek için zamanlı görev çalışıyor");
+                                        System.out.println("Oyuncu listesi boyutu: " + gameState.getPlayers().size());
+
                                         // Önce tam güncelleme yap
                                         gameController.updateUI();
                                         // Sonra özellikle aksiyonları güncelle
@@ -251,6 +258,44 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
+
+    private void handlePhaseChangeMessage(Message message) {
+        // Faz bilgisini al
+        String newPhase = (String) message.getDataValue("newPhase");
+        if (newPhase == null) return;
+
+        // Debug log
+        System.out.println("Faz değişim mesajı alındı: " + newPhase);
+
+        // GameState'i güncelle
+        boolean fazDegisti = false;
+
+        if ("NIGHT".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.NIGHT) {
+            gameState.setCurrentPhase(GameState.Phase.NIGHT);
+            fazDegisti = true;
+        } else if ("DAY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.DAY) {
+            gameState.setCurrentPhase(GameState.Phase.DAY);
+            fazDegisti = true;
+        } else if ("LOBBY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.LOBBY) {
+            gameState.setCurrentPhase(GameState.Phase.LOBBY);
+            fazDegisti = true;
+        }
+
+        // Sistem mesajı ekle
+        String phaseMessage = (String) message.getDataValue("message");
+        if (phaseMessage != null) {
+            gameState.addSystemMessage(phaseMessage);
+            if (gameController != null) {
+                gameController.handleSystemMessage(phaseMessage);
+            }
+        }
+
+        // Faz değiştiyse UI'ı tam güncelle
+        if (fazDegisti) {
+            updateFullUI();
+        }
+    }
+
     private void handleGameEvent(String event, Message message) {
         switch (event) {
             case "PLAYER_KILLED":

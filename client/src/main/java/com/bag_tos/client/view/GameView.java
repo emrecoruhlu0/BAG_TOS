@@ -16,14 +16,13 @@ import javafx.scene.text.Text;
 
 import java.util.List;
 
-/**
- * Oyun ekranı görünümü
- */
+
 public class GameView extends BorderPane {
     // Üst bilgi alanı
     private Text phaseText;
     private Text roleText;
     private Text timeText;
+    private Text usernameText;
 
     // Ana bileşenler
     private PlayerListView playerListView;
@@ -35,9 +34,7 @@ public class GameView extends BorderPane {
     private ChatPanel mafiaChatPanel;
     private TextArea systemMessagesArea;
 
-    /**
-     * Oyun görünümü oluşturur
-     */
+
     public GameView() {
         setPadding(new Insets(10));
         getStyleClass().add("game-view");
@@ -62,16 +59,17 @@ public class GameView extends BorderPane {
         setBottom(actionPanel);
     }
 
-    /**
-     * Üst bilgi alanını oluşturur
-     *
-     * @return Üst bilgi alanı
-     */
+
     private HBox createInfoBox() {
         HBox infoBox = new HBox(20);
         infoBox.setPadding(new Insets(10));
         infoBox.setAlignment(Pos.CENTER);
 
+        // Kullanıcı adı için alanı sol tarafta göster
+        usernameText = new Text("OYUNCU: -");
+        usernameText.setFont(Font.font("System", FontWeight.BOLD, 16));
+
+        // Mevcut bilgiler
         phaseText = new Text("FAZ: LOBI");
         phaseText.setFont(Font.font("System", FontWeight.BOLD, 16));
 
@@ -81,15 +79,22 @@ public class GameView extends BorderPane {
         timeText = new Text("SÜRE: -");
         timeText.setFont(Font.font("System", FontWeight.BOLD, 16));
 
-        infoBox.getChildren().addAll(phaseText, roleText, timeText);
+        // Oyuncu adını sola, diğer bilgileri ortaya hizala
+        HBox centerBox = new HBox(20);
+        centerBox.setAlignment(Pos.CENTER);
+        centerBox.getChildren().addAll(phaseText, roleText, timeText);
+
+        // İnfoBox içinde yerleşim
+        infoBox.getChildren().add(usernameText);
+
+        // Ortadaki kutuyu genişletmek için sahne genişliğine bağla
+        HBox.setHgrow(centerBox, Priority.ALWAYS);
+        infoBox.getChildren().add(centerBox);
+
         return infoBox;
     }
 
-    /**
-     * Sohbet alanını oluşturur
-     *
-     * @return Sohbet sekmeli paneli
-     */
+
     private TabPane createChatArea() {
         TabPane tabPane = new TabPane();
 
@@ -117,17 +122,15 @@ public class GameView extends BorderPane {
         return tabPane;
     }
 
-    /**
-     * Faz bilgisini günceller
-     *
-     * @param phase Oyun fazı
-     */
+
     public void updatePhase(GameState.Phase phase) {
+        System.out.println("View Faz Güncellemesi: " + phase); // Debug log
+
         switch (phase) {
             case DAY:
                 phaseText.setText("FAZ: GÜNDÜZ");
                 phaseText.setFill(Color.ORANGE);
-                // Ana panelde stil değişikliği yapılabilir
+                // Ana panelde stil değişikliği
                 this.getStyleClass().remove("night-phase");
                 this.getStyleClass().add("day-phase");
                 break;
@@ -145,38 +148,25 @@ public class GameView extends BorderPane {
         }
     }
 
-    /**
-     * Rol bilgisini günceller
-     *
-     * @param role Oyuncu rolü
-     */
+    public void updateUsername(String username) {
+        usernameText.setText("OYUNCU: " + username);
+    }
+
     public void updateRole(String role) {
         roleText.setText("ROL: " + role);
     }
 
-    /**
-     * Zamanlayıcı bilgisini günceller
-     *
-     * @param seconds Kalan saniye
-     */
+
     public void updateTime(int seconds) {
         timeText.setText("SÜRE: " + seconds + " sn");
     }
 
-    /**
-     * Genel sohbete mesaj ekler
-     *
-     * @param message Mesaj
-     */
+
     public void addChatMessage(String message) {
         generalChatPanel.addMessage(message);
     }
 
-    /**
-     * Mafya sohbetine mesaj ekler
-     *
-     * @param message Mesaj
-     */
+
     public void addMafiaMessage(String message) {
         mafiaChatPanel.addMessage(message);
 
@@ -196,11 +186,7 @@ public class GameView extends BorderPane {
         }
     }
 
-    /**
-     * Sistem mesajları alanına mesaj ekler
-     *
-     * @param message Mesaj
-     */
+
     public void addSystemMessage(String message) {
         systemMessagesArea.appendText(message + "\n");
         // Otomatik kaydırma
@@ -209,47 +195,26 @@ public class GameView extends BorderPane {
 
     // Getter metodları
 
-    /**
-     * Oyuncu listesi görünümünü döndürür
-     *
-     * @return Oyuncu listesi görünümü
-     */
     public PlayerListView getPlayerListView() {
         return playerListView;
     }
 
-    /**
-     * Aksiyon panelini döndürür
-     *
-     * @return Aksiyon paneli
-     */
+
     public ActionPanel getActionPanel() {
         return actionPanel;
     }
 
-    /**
-     * Genel sohbet panelini döndürür
-     *
-     * @return Genel sohbet paneli
-     */
+
     public ChatPanel getChatPanel() {
         return generalChatPanel;
     }
 
-    /**
-     * Mafya sohbet panelini döndürür
-     *
-     * @return Mafya sohbet paneli
-     */
+
     public ChatPanel getMafiaChatPanel() {
         return mafiaChatPanel;
     }
 
-    /**
-     * Sistem mesajları alanını döndürür
-     *
-     * @return Sistem mesajları alanı
-     */
+
     public TextArea getSystemMessagesArea() {
         return systemMessagesArea;
     }

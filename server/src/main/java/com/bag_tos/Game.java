@@ -48,6 +48,9 @@ public class Game {
     private String jailedPlayer = null;  // Hapsedilen oyuncu
     private String jailorPlayer = null;  // Gardiyan oyuncu
 
+    // Zamanlayıcı için yeni değişken
+    private ScheduledFuture<?> phaseTransitionTask;
+
     public Game(List<ClientHandler> players) {
         this.players = new ArrayList<>(players); // Oyuncu listesini kopyalayarak oluştur
         this.roles = new HashMap<>(); // Rol eşleştirmelerini tutacak harita
@@ -76,6 +79,10 @@ public class Game {
         return roles.get(username);
     }
 
+    public List<String> getAlivePlayers() {
+        return alivePlayers;
+    }
+
     // Mevcut fazı döndürür
     public GamePhase getCurrentPhase() {
         return currentPhase;
@@ -98,11 +105,14 @@ public class Game {
 
     // Oyunu başlangıç durumuna getirir ve tüm oyuncuları hayatta işaretler
     public void initializeGame() {
-        // Hayatta olan oyuncuları temizle ve yeniden ekle
+        // Tüm oyuncuları hayatta olarak işaretle
         alivePlayers.clear();
         for (ClientHandler player : players) {
             alivePlayers.add(player.getUsername());
         }
+
+        // Debug log
+        System.out.println("Oyun başlatılıyor - Hayatta olan oyuncular: " + alivePlayers);
 
         // Rolleri dağıt
         assignRoles();
@@ -191,6 +201,9 @@ public class Game {
                     .ifPresent(p -> p.sendJsonMessage(jailMessage));
         }
 
+        // Faz değişimini bildir - EN ÖNEMLİ DEĞİŞİKLİK
+        broadcastPhaseChange(GamePhase.NIGHT);
+
         // Oyun durumu bildirimi
         broadcastGameState();
 
@@ -206,14 +219,24 @@ public class Game {
 
     // Gündüz fazını başlatır
     private void startDayPhase() {
-        currentPhase = GamePhase.DAY; // Faz güncelleme
-        remainingSeconds = GameConfig.DAY_PHASE_DURATION; // Süreyi ayarlama
-        votes.clear(); // Oyları temizleme
+        currentPhase = GamePhase.DAY;
+        remainingSeconds = GameConfig.DAY_PHASE_DURATION;
+        votes.clear();
 
-        broadcastGameState(); // Oyun durumunu bildir
-        startCountdown(); // Zamanlayıcıyı başlat
-        scheduleDayActions(); // Gündüz aksiyonlarını zamanla
-        sendAvailableActions(); // Aksiyonları bildir
+        // Faz değişimini bildir - EN ÖNEMLİ DEĞİŞİKLİK
+        broadcastPhaseChange(GamePhase.DAY);
+
+        // Oyun durumu bildirimi
+        broadcastGameState();
+
+        // Zamanlayıcıyı başlat
+        startCountdown();
+
+        // Gündüz aksiyonlarını zamanla
+        scheduleDayActions();
+
+        // Oyunculara uygun aksiyonları bildir
+        sendAvailableActions();
     }
 
     // Oyun durumu mesajı oluşturur
@@ -264,31 +287,47 @@ public class Game {
         }
     }
 
+    private void broadcastPhaseChange(GamePhase newPhase) {
+        Message phaseChangeMessage = new Message(MessageType.PHASE_CHANGE);
+        phaseChangeMessage.addData("newPhase", newPhase.name());
+        phaseChangeMessage.addData("message", newPhase == GamePhase.NIGHT ?
+                "Gece fazı başladı!" : "Gündüz fazı başladı!");
+        phaseChangeMessage.addData("phaseDuration", newPhase == GamePhase.NIGHT ?
+                GameConfig.NIGHT_PHASE_DURATION : GameConfig.DAY_PHASE_DURATION);
+
+        // Tüm oyunculara bildir
+        for (ClientHandler player : players) {
+            if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
+                player.sendJsonMessage(phaseChangeMessage);
+            }
+        }
+    }
+
     // Kullanılabilir aksiyonları oyunculara bildirir
     private void sendAvailableActions() {
         for (ClientHandler player : players) {
-            // Ölü oyuncular aksiyon yapamaz
             if (!alivePlayers.contains(player.getUsername())) {
-                continue;
+                continue; // Ölü oyuncular aksiyon yapamaz
             }
 
             String username = player.getUsername();
+            Role role = roles.get(username);
+
+            if (role == null) {
+                continue;
+            }
+
             // Hapsedilen oyuncu gece aksiyon yapamaz
             if (jailedPlayer != null && jailedPlayer.equals(username) &&
                     currentPhase == GamePhase.NIGHT) {
                 continue;
             }
 
-            Role role = roles.get(username);
-            if (role == null) {
-                continue;
-            }
-
-            // Aksiyon mesajı oluştur
+            // Kullanılabilir aksiyonlar mesajı
             Message actionMessage = new Message(MessageType.AVAILABLE_ACTIONS);
             List<String> availableActions = new ArrayList<>();
 
-            // Faz ve role göre aksiyon belirleme
+            // Faza ve role göre aksiyonları belirle
             if (currentPhase == GamePhase.NIGHT) {
                 RoleType roleType = role.getRoleType();
 
@@ -298,35 +337,39 @@ public class Game {
                     availableActions.add(ActionType.HEAL.name());
                 } else if (roleType == RoleType.SERIF) {
                     availableActions.add(ActionType.INVESTIGATE.name());
-                } else if (roleType == RoleType.JAILOR) {
-                    // Gardiyan gece birini hapsettiyse, infaz seçeneği sunuluyor
-                    if (jailorPlayer != null && jailorPlayer.equals(username) && jailedPlayer != null) {
-                        availableActions.add(ActionType.EXECUTE.name());
-                    }
+                } else if (roleType == RoleType.JAILOR && jailorPlayer != null &&
+                        jailorPlayer.equals(username) && jailedPlayer != null) {
+                    availableActions.add(ActionType.EXECUTE.name());
                 }
             } else if (currentPhase == GamePhase.DAY) {
                 availableActions.add(ActionType.VOTE.name());
-
-                // Gardiyan gündüz hapsetme aksiyonu alabilir
                 if (role.getRoleType() == RoleType.JAILOR) {
                     availableActions.add(ActionType.JAIL.name());
                 }
             }
 
+            // Mevcut aksiyonları ekle
             actionMessage.addData("availableActions", availableActions);
 
-            // Hedef listesi oluşturma
+            // Hedef listesi ekle
             List<String> possibleTargets = new ArrayList<>();
+
+            // SORUN BURADA: Hedef listesi boş, tüm alive oyuncuları ekle
             for (ClientHandler target : players) {
                 String targetUsername = target.getUsername();
-                // Kendi üzerinde aksiyon kontrolü
+                // Kendi üzerinde aksiyon yapılabilir mi kontrolü
                 if (alivePlayers.contains(targetUsername) &&
                         (GameConfig.ALLOW_SELF_ACTIONS || !targetUsername.equals(username))) {
                     possibleTargets.add(targetUsername);
                 }
             }
+
+            // Debug log ekle
+            System.out.println("Olası hedefler (" + username + " için): " + possibleTargets);
+
             actionMessage.addData("possibleTargets", possibleTargets);
 
+            // Oyuncuya gönder
             player.sendJsonMessage(actionMessage);
         }
     }
@@ -356,17 +399,21 @@ public class Game {
 
     // Gece aksiyonlarını zamanlar
     private void scheduleNightActions() {
-        timer.schedule(() -> {
-            processNightActions(); // Aksiyonları işle
-            startDayPhase(); // Gündüz fazına geç
+        phaseTransitionTask = timer.schedule(() -> {
+            processNightActions();
+            if (!gameOver) {  // Oyun bitmemişse gündüz fazına geç
+                startDayPhase();
+            }
         }, GameConfig.NIGHT_PHASE_DURATION, TimeUnit.SECONDS);
     }
 
     // Gündüz aksiyonlarını zamanlar
     private void scheduleDayActions() {
-        timer.schedule(() -> {
-            processVotes(); // Oyları işle
-            startNightPhase(); // Gece fazına geç
+        phaseTransitionTask = timer.schedule(() -> {
+            processVotes();
+            if (!gameOver) {  // Oyun bitmemişse gece fazına geç
+                startNightPhase();
+            }
         }, GameConfig.DAY_PHASE_DURATION, TimeUnit.SECONDS);
     }
 
@@ -449,21 +496,25 @@ public class Game {
 
     // Gece aksiyonlarını işler
     private void processNightActions() {
+        // Oyun bittiyse işlem yapma
+        if (gameOver) return;
+
         // Hedefleri belirle
         Map<ActionType, Map<String, String>> actionTargets = collectActionTargets();
 
         // Gece aksiyonlarını sırasıyla uygula
-        processJailorActions(); // Önce gardiyan aksiyonlarını işle (hapisteki oyuncu diğer aksiyonları yapamaz)
+        processJailorActions(); // Önce gardiyan aksiyonlarını işle
         processMafiaActions(actionTargets.getOrDefault(ActionType.KILL, new HashMap<>()));
         processDoctorActions(actionTargets.getOrDefault(ActionType.HEAL, new HashMap<>()));
         processSheriffActions(actionTargets.getOrDefault(ActionType.INVESTIGATE, new HashMap<>()));
 
-        // Hapishane durumunu sıfırla
-        resetJailState();
-
+        // Hapishane odasını kapat
         if (jailorPlayer != null) {
             roomHandler.closeJailRoom(jailorPlayer);
         }
+
+        // Hapishane durumunu sıfırla
+        resetJailState();
 
         // Kazanma durumunu kontrol et
         checkWinConditions();
@@ -832,6 +883,9 @@ public class Game {
 
     // Oylamaları işler
     private void processVotes() {
+        // Oyun bittiyse işlem yapma
+        if (gameOver) return;
+
         Map<String, Integer> voteCounts = new HashMap<>();
 
         // Oyları say
@@ -852,15 +906,14 @@ public class Game {
 
         // Asma işlemi veya bildirim
         if (executedPlayer != null && maxVotes > 0) {
-            executePlayer(executedPlayer, new HashMap<>(votes)); // Votes kopyası
+            executePlayer(executedPlayer, new HashMap<>(votes)); // Votes'un kopyasını gönder
         } else {
             notifyNoExecution();
         }
 
-        // Kazanma kontrolü
+        // Kazanma durumunu kontrol et
         checkWinConditions();
     }
-
     // Oyuncuyu asar ve bildirir
     private void executePlayer(String playerToExecute, Map<String, String> voteDetails) {
         // Listeden çıkar
@@ -941,33 +994,48 @@ public class Game {
 
     // Kazanma koşullarını kontrol eder
     private void checkWinConditions() {
-        if (gameOver) return; // Oyun zaten bittiyse çık
+        if (gameOver) {
+            return; // Oyun zaten bitti
+        }
 
         int mafyaCount = 0;
         int townCount = 0;
 
+        // Oyun başında hiç ölüm olmadıysa kazanan yok
+        if (alivePlayers.size() == players.size()) {
+            System.out.println("Henüz hiç ölüm yok, oyun devam ediyor.");
+            return;
+        }
+
         // Hayatta kalan oyuncuların rollerini say
         for (String username : alivePlayers) {
             Role role = roles.get(username);
-            if (role == null) continue;
+
+            if (role == null) {
+                continue;
+            }
 
             RoleType roleType = role.getRoleType();
 
             if (roleType == RoleType.MAFYA) {
-                mafyaCount++; // Mafya sayısını artır
-            } else if (roleType == RoleType.DOKTOR || roleType == RoleType.SERIF) {
-                townCount++; // Kasaba sakini sayısını artır
+                mafyaCount++;
+            } else if (roleType == RoleType.DOKTOR || roleType == RoleType.SERIF || roleType == RoleType.JAILOR) {
+                townCount++;
             }
             // Jester gibi nötr roller sayılmaz
         }
+
+        // Debug log
+        System.out.println("Hayatta kalan sayıları - Mafya: " + mafyaCount + ", Kasaba: " + townCount);
 
         // Kazanan takımı belirle
         String winningTeam = null;
 
         if (mafyaCount == 0) {
-            winningTeam = "TOWN"; // Mafya kalmadıysa kasaba kazanır
-        } else if (mafyaCount >= townCount) {
-            winningTeam = "MAFIA"; // Mafya sayısı kasaba sakinlerine eşit veya fazlaysa mafya kazanır
+            winningTeam = "TOWN"; // Tüm mafya ölünce kasaba kazanır
+        } else if (mafyaCount >= townCount && townCount > 0) {
+            // Mafya sayısı kasaba sayısına eşit veya fazlaysa VE en az bir kasaba oyuncusu varsa kazanır
+            winningTeam = "MAFIA";
         }
 
         // Kazanan varsa oyunu bitir
@@ -979,10 +1047,16 @@ public class Game {
 
     // Oyunu bitirir ve sonucu bildirir
     private void endGame(String winningTeam) {
-        // Zamanlayıcıyı durdur
+        // Zamanlayıcıları durdur
+        if (countdownTask != null) {
+            countdownTask.cancel(true);
+        }
+        if (phaseTransitionTask != null) {
+            phaseTransitionTask.cancel(true);
+        }
         timer.shutdownNow();
 
-        // Kazanan mesajı oluştur
+        // Kazanan takıma göre mesaj
         String endMessage;
         if ("MAFIA".equals(winningTeam)) {
             endMessage = "OYUN BİTTİ\nMAFYA KAZANDI!";
@@ -1009,7 +1083,7 @@ public class Game {
             }
         }
 
-        // Oyun sonu mesajı oluştur
+        // Oyun sonu mesajı
         Message gameEndMessage = new Message(MessageType.GAME_STATE);
         gameEndMessage.addData("gameOver", true);
         gameEndMessage.addData("winningTeam", winningTeam);
@@ -1021,7 +1095,6 @@ public class Game {
             player.sendJsonMessage(gameEndMessage);
         }
     }
-
     // Rolün hangi takıma ait olduğunu döndürür
     private String roleToTeam(Role role) {
         if (role == null) return "UNKNOWN";

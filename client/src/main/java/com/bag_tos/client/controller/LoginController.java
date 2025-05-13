@@ -55,6 +55,9 @@ public class LoginController {
                         authMessage.addData("username", username);
                         networkManager.sendMessage(authMessage);
 
+                        // Kullanıcı adını GameState'e kaydet - BU SATIRI EKLEYİN
+                        gameState.setCurrentUsername(username);
+
                         // Lobi ekranına geçiş yap ve LobbyController oluştur
                         LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
 
@@ -82,7 +85,6 @@ public class LoginController {
             view.setStatusText("Geçerli bir port numarası giriniz!");
         }
     }
-
     public LoginView getView() {
         return view;
     }

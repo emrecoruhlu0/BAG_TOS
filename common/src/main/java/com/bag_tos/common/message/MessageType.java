@@ -10,6 +10,7 @@ public enum MessageType {
     ACTION,             // Oyun içi aksiyon (öldürme, iyileştirme vb.)
     VOTE,               // Oylama
     CHAT,               // Sohbet mesajı
+    PHASE_CHANGE,       // Faz değişimini bildirir
 
     // Sunucudan istemciye gidecek bildirimler
     GAME_STATE,         // Genel oyun durumu güncellemesi

@@ -18,16 +18,10 @@ import javafx.scene.text.Text;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Oyun içi aksiyonları gösteren panel
- */
 public class ActionPanel extends VBox {
     private Text titleText;
     private ObservableList<Player> targetPlayers;
 
-    /**
-     * Aksiyon paneli oluşturur
-     */
     public ActionPanel() {
         setPadding(new Insets(15));
         setSpacing(10);
@@ -42,19 +36,11 @@ public class ActionPanel extends VBox {
         getChildren().add(titleText);
     }
 
-    /**
-     * Tüm aksiyonları temizler
-     */
     public void clearActions() {
         getChildren().clear();
         getChildren().add(titleText);
     }
 
-    /**
-     * Hedef oyuncu listesini ayarlar
-     *
-     * @param players Hedef oyuncu listesi
-     */
     public void setTargetPlayers(List<Player> players) {
         targetPlayers.clear();
         if (players != null) {
@@ -62,20 +48,12 @@ public class ActionPanel extends VBox {
         }
     }
 
-    /**
-     * Sadece yaşayan oyuncuları hedef listesine ekler
-     *
-     * @param players Tüm oyuncular
-     */
+    // Oyuncular listesini ayarla
     public void setAlivePlayers(List<Player> players) {
         targetPlayers.clear();
-
         if (players != null && !players.isEmpty()) {
-            // Oyuncu listesini konsola yazdır (hata ayıklama)
-            System.out.println("Hedefler ekleniyor, oyuncu sayısı: " + players.size());
-            for (Player p : players) {
-                System.out.println("Oyuncu: " + p.getUsername() + ", Hayatta: " + p.isAlive());
-            }
+            // Debug
+            System.out.println("setAlivePlayers(TÜM OYUNCULAR) çağrıldı, oyuncu sayısı: " + players.size());
 
             // Canlı oyuncuları ekle
             List<Player> alivePlayers = players.stream()
@@ -84,28 +62,60 @@ public class ActionPanel extends VBox {
 
             targetPlayers.addAll(alivePlayers);
 
-            // Hedef listesini kontrol et
-            System.out.println("Eklenen hedef sayısı: " + targetPlayers.size());
+            // Debug
+            System.out.println("Hedef listesine eklenen oyuncu sayısı: " + targetPlayers.size());
         } else {
             System.out.println("UYARI: Oyuncu listesi boş!");
         }
     }
 
-    /**
-     * Sadece yaşayan oyuncuları hedef listesine ekler, kendisini filtreler
-     *
-     * @param players Tüm oyuncular
-     * @param currentUsername Mevcut oyuncunun kullanıcı adı
-     */
     public void setAlivePlayers(List<Player> players, String currentUsername) {
         targetPlayers.clear();
-        if (players != null) {
+        if (players != null && !players.isEmpty()) {
+            // Debug
+            System.out.println("setAlivePlayers(KENDİSİ HARİÇ) çağrıldı, oyuncu sayısı: " + players.size());
+            System.out.println("Hariç tutulan oyuncu: " + currentUsername);
+
+            // Canlı ve kendisi olmayan oyuncuları ekle
             List<Player> filteredPlayers = players.stream()
                     .filter(Player::isAlive)
                     .filter(p -> !p.getUsername().equals(currentUsername))
                     .collect(Collectors.toList());
 
             targetPlayers.addAll(filteredPlayers);
+
+            // Debug
+            System.out.println("Hedef listesine eklenen oyuncu sayısı: " + targetPlayers.size());
+        } else {
+            System.out.println("UYARI: Oyuncu listesi boş!");
+        }
+    }
+
+    public void setAlivePlayers(List<Player> players, String currentUsername, String currentRole) {
+        targetPlayers.clear();
+
+        if (players != null && !players.isEmpty()) {
+            // Debug
+            System.out.println("Hedefler ekleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
+
+            // Tüm canlı oyuncuları filtrele
+            List<Player> validTargets = players.stream()
+                    .filter(Player::isAlive)
+                    .filter(player -> {
+                        // Eğer oyuncu kendisi ise, sadece doktor için kendini hedef göster
+                        if (player.getUsername().equals(currentUsername)) {
+                            return "Doktor".equals(currentRole);
+                        }
+                        return true; // Diğer oyuncular her zaman gösterilir
+                    })
+                    .collect(Collectors.toList());
+
+            targetPlayers.addAll(validTargets);
+
+            // Debug
+            System.out.println("Eklenen hedef sayısı: " + targetPlayers.size());
+        } else {
+            System.out.println("UYARI: Oyuncu listesi boş!");
         }
     }
 
@@ -178,21 +188,30 @@ public class ActionPanel extends VBox {
         getChildren().add(killActionBox);
     }
 
-    /**
-     * Doktor için iyileştirme aksiyonu ekler
-     *
-     * @param handler Aksiyon işleyicisi
-     */
     public void addHealAction(ActionHandler handler) {
         HBox healActionBox = new HBox(10);
         healActionBox.setAlignment(Pos.CENTER);
 
         Label actionLabel = new Label("İyileştir:");
 
-        ComboBox<Player> targetCombo = new ComboBox<>(targetPlayers);
+        // Hedef listesinin boyutunu log'la
+        System.out.println("addHealAction içinde tüm hedef oyuncular:");
+        for (Player p : targetPlayers) {
+            System.out.println(" - " + p.getUsername());
+        }
+
+        // Yeni bir observable liste oluştur ve mevcut hedefleri kopyala
+        ObservableList<Player> healTargets = FXCollections.observableArrayList(targetPlayers);
+
+        // ComboBox oluştur
+        ComboBox<Player> targetCombo = new ComboBox<>(healTargets);
         targetCombo.setPromptText("Hedef seçin");
         targetCombo.setCellFactory(param -> new PlayerListCell());
         targetCombo.setButtonCell(new PlayerListCell());
+
+
+        // Hedef listesini tekrar log'la
+        System.out.println("ComboBox oluşturulduktan sonra hedef sayısı: " + targetPlayers.size());
 
         Button healButton = new Button("İyileştir");
         healButton.getStyleClass().add("primary-button");
@@ -208,12 +227,6 @@ public class ActionPanel extends VBox {
         healActionBox.getChildren().addAll(actionLabel, targetCombo, healButton);
         getChildren().add(healActionBox);
     }
-
-    /**
-     * Oylama aksiyonu ekler
-     *
-     * @param handler Aksiyon işleyicisi
-     */
     public void addVoteAction(ActionHandler handler) {
         HBox voteActionBox = new HBox(10);
         voteActionBox.setAlignment(Pos.CENTER);
@@ -240,11 +253,6 @@ public class ActionPanel extends VBox {
         getChildren().add(voteActionBox);
     }
 
-    /**
-     * Şerif için araştırma aksiyonu ekler
-     *
-     * @param handler Aksiyon işleyicisi
-     */
     public void addInvestigateAction(ActionHandler handler) {
         HBox investigateActionBox = new HBox(10);
         investigateActionBox.setAlignment(Pos.CENTER);
@@ -271,23 +279,14 @@ public class ActionPanel extends VBox {
         getChildren().add(investigateActionBox);
     }
 
-    /**
-     * Hedef listesindeki oyuncu sayısını döndürür
-     */
     public int getTargetCount() {
         return targetPlayers.size();
     }
 
-    /**
-     * Aksiyon için işleyici arayüzü
-     */
     public interface ActionHandler {
         void onAction(Player target);
     }
 
-    /**
-     * Oyuncuların gösterimi için özel liste hücresi
-     */
     private static class PlayerListCell extends javafx.scene.control.ListCell<Player> {
         @Override
         protected void updateItem(Player player, boolean empty) {

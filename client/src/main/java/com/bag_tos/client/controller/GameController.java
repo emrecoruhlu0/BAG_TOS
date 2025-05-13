@@ -116,12 +116,6 @@ public class GameController {
             } else if (role.equals("Doktor")) {
                 // Doktor iyileştirme aksiyonu
                 view.getActionPanel().addHealAction(target -> {
-                    // Kendi üzerinde aksiyon kontrolü
-                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                            target.getUsername().equals(gameState.getCurrentUsername())) {
-                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                        return;
-                    }
 
                     // İyileştirme aksiyonu için Message nesnesi oluştur
                     Message actionMessage = new Message(MessageType.ACTION);
@@ -176,25 +170,29 @@ public class GameController {
         Platform.runLater(() -> {
             view.getActionPanel().clearActions();
 
-            // Oyuncu hedeflerini ayarla (kendini hariç tut)
-            if (!GameConfig.ALLOW_SELF_ACTIONS) {
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), gameState.getCurrentUsername());
-            } else {
+            // Geçerli oyuncu bilgileri
+            String currentUsername = gameState.getCurrentUsername();
+            String currentRole = gameState.getCurrentRole();
+
+            System.out.println("Aksiyon güncelleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
+
+            // Doktor için tüm canlı oyuncular (kendisi dahil)
+            if (currentRole != null && currentRole.equals("Doktor")) {
+                System.out.println("Doktor rolü için tüm canlı oyuncular hedef listesine ekleniyor (kendisi dahil)");
                 view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+            } else {
+                // Diğer roller için kendisi hariç oyuncular
+                System.out.println("Diğer roller için canlı oyuncular hedef listesine ekleniyor (kendisi hariç)");
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
             }
+
+            System.out.println("Toplam hedef sayısı: " + view.getActionPanel().getTargetCount());
 
             if (availableActions != null) {
                 for (String action : availableActions) {
                     switch (action) {
                         case "KILL":
                             view.getActionPanel().addKillAction(target -> {
-                                // Kendi üzerinde aksiyon kontrolü
-                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                        target.getUsername().equals(gameState.getCurrentUsername())) {
-                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                                    return;
-                                }
-
                                 Message actionMessage = new Message(MessageType.ACTION);
                                 ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
                                 actionMessage.addData("actionRequest", actionRequest);
@@ -205,9 +203,11 @@ public class GameController {
                             break;
                         case "HEAL":
                             view.getActionPanel().addHealAction(target -> {
-                                // Kendi üzerinde aksiyon kontrolü
+                                // Doktor rolü için özel durum ekle
                                 if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                        target.getUsername().equals(gameState.getCurrentUsername())) {
+                                        target.getUsername().equals(gameState.getCurrentUsername()) &&
+                                        !"Doktor".equals(gameState.getCurrentRole())) {
+                                    // Doktor DEĞİLSE kendine aksiyon yapma
                                     view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
                                     return;
                                 }
@@ -222,13 +222,6 @@ public class GameController {
                             break;
                         case "INVESTIGATE":
                             view.getActionPanel().addInvestigateAction(target -> {
-                                // Kendi üzerinde aksiyon kontrolü
-                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                        target.getUsername().equals(gameState.getCurrentUsername())) {
-                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                                    return;
-                                }
-
                                 Message actionMessage = new Message(MessageType.ACTION);
                                 ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
                                 actionMessage.addData("actionRequest", actionRequest);
@@ -239,13 +232,6 @@ public class GameController {
                             break;
                         case "VOTE":
                             view.getActionPanel().addVoteAction(target -> {
-                                // Kendi kendine oy kontrolü
-                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                        target.getUsername().equals(gameState.getCurrentUsername())) {
-                                    view.addSystemMessage("Kendinize oy veremezsiniz!");
-                                    return;
-                                }
-
                                 Message voteMessage = new Message(MessageType.VOTE);
                                 VoteRequest voteRequest = new VoteRequest(target.getUsername());
                                 voteMessage.addData("voteRequest", voteRequest);
@@ -264,7 +250,6 @@ public class GameController {
                                 view.addSystemMessage("Hapsedilecek hedef seçildi: " + target.getUsername());
                             });
                             break;
-
                         case "EXECUTE":
                             view.getActionPanel().addExecuteAction(target -> {
                                 Message actionMessage = new Message(MessageType.ACTION);
@@ -280,7 +265,6 @@ public class GameController {
             }
         });
     }
-
     public void updateUI() {
         Platform.runLater(() -> {
             updatePhaseDisplay();
@@ -289,12 +273,16 @@ public class GameController {
             updateTimeDisplay();
             updateActionControls();
             updateChatControls();
+
+            // Oyuncu adını güncelle
+            view.updateUsername(gameState.getCurrentUsername());
         });
     }
 
     // Her bileşen için ayrı güncelleme metodları
     private void updatePhaseDisplay() {
         view.updatePhase(gameState.getCurrentPhase());
+        System.out.println("UI Faz Güncellemesi: " + gameState.getCurrentPhase()); // Debug log
     }
 
     private void updateRoleDisplay() {
@@ -311,20 +299,27 @@ public class GameController {
 
     private void updateActionControls() {
         // Aksiyon panelini güncelle
+        System.out.println("Aksiyon Kontrollerini Güncelleme - Faz: " + gameState.getCurrentPhase()); // Debug log
         setupActionHandlers();
     }
 
     private void updateChatControls() {
         // Gece/gündüz durumuna göre sohbet kontrollerini güncelle
+        GameState.Phase currentPhase = gameState.getCurrentPhase();
         boolean isNight = gameState.getCurrentPhase() == GameState.Phase.NIGHT;
+
+        // Debug log
+        System.out.println("Chat kontrollerini güncelleme - Faz: " + currentPhase);
 
         // Gece fazında genel sohbeti devre dışı bırak
         if (isNight && GameConfig.DISABLE_CHAT_AT_NIGHT) {
             view.getChatPanel().getMessageField().setDisable(true);
             view.getChatPanel().getSendButton().setDisable(true);
+            System.out.println("Gece fazı - sohbet devre dışı"); // Debug log
         } else {
             view.getChatPanel().getMessageField().setDisable(false);
             view.getChatPanel().getSendButton().setDisable(false);
+            System.out.println("Gündüz fazı - sohbet etkin"); // Debug log
         }
 
         // Mafya sohbeti güncelleme
@@ -361,9 +356,6 @@ public class GameController {
         });
     }
 
-    /**
-     * Sadece aksiyon panelini günceller
-     */
     public void updateActionsOnly() {
         Platform.runLater(() -> {
             // Debug log
@@ -374,10 +366,18 @@ public class GameController {
             view.getActionPanel().clearActions();
 
             // Önce oyuncu listesini ayarla
-            if (!GameConfig.ALLOW_SELF_ACTIONS) {
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), gameState.getCurrentUsername());
-            } else {
+            String currentRole = gameState.getCurrentRole();
+            String currentUsername = gameState.getCurrentUsername();
+
+            System.out.println("Güncel rol: " + currentRole + ", Kullanıcı: " + currentUsername);
+
+            // Doktor rolü için özel durum kontrolü
+            if ("Doktor".equals(currentRole)) {
+                // Doktor tüm oyuncuları görebilir (kendisi dahil)
                 view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+            } else {
+                // Diğer roller kendilerini göremez
+                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
             }
 
             // Sonra aksiyonları yapılandır

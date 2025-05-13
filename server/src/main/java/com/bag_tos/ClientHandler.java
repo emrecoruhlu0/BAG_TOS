@@ -7,12 +7,14 @@ import com.bag_tos.common.message.request.*;
 import com.bag_tos.common.message.response.*;
 import com.bag_tos.common.model.ActionType;
 import com.bag_tos.common.model.GamePhase;
+import com.bag_tos.common.model.RoleType;
 import com.bag_tos.common.util.JsonUtils;
 import com.bag_tos.roles.Role;
 import com.bag_tos.roles.mafia.Mafya;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -308,13 +310,31 @@ public class ClientHandler implements Runnable {
                 String actionTypeStr = actionRequest.getActionType();
                 String target = actionRequest.getTarget();
 
+                if (target == null || target.isEmpty()) {
+                    sendErrorMessage("INVALID_TARGET", "Geçersiz hedef!");
+                    return;
+                }
+
+                // Hedef oyuncu hayatta mı kontrol et
+                if (!game.getAlivePlayers().contains(target)) {
+                    sendErrorMessage("INVALID_TARGET", "Hedef oyuncu hayatta değil!");
+                    return;
+                }
+
                 try {
                     ActionType actionType = ActionType.valueOf(actionTypeStr);
 
                     // Kendi üzerinde aksiyon kontrolü
-                    if (!GameConfig.ALLOW_SELF_ACTIONS && target.equals(username)) {
-                        sendErrorMessage("FORBIDDEN", "Kendiniz üzerinde aksiyon yapamazsınız!");
-                        return;
+                    if (!GameConfig.ALLOW_SELF_ACTIONS && username.equals(target)) {
+                        // Doktor rolü için özel durum
+                        Role role = game.getRole(username);
+                        if (role != null && role.getRoleType() == RoleType.DOKTOR && actionType == ActionType.HEAL) {
+                            // Doktor kendini iyileştirebilir, devam et
+                        } else {
+                            // Diğer roller kendilerine aksiyon yapamaz
+                            sendErrorMessage("FORBIDDEN", "Kendiniz üzerinde aksiyon yapamazsınız!");
+                            return;
+                        }
                     }
 
                     // Mevcut faz kontrolü ve aksiyonların işlenmesi
