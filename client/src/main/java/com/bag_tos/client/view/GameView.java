@@ -34,6 +34,8 @@ public class GameView extends BorderPane {
     private ChatPanel mafiaChatPanel;
     private TextArea systemMessagesArea;
 
+    private ChatPanel jailChatPanel;
+    private Tab jailChatTab;
 
     public GameView() {
         setPadding(new Insets(10));
@@ -110,6 +112,11 @@ public class GameView extends BorderPane {
         mafiaChatPanel = new ChatPanel("Mafya mesajınızı yazın...");
         mafiaChatTab.setContent(mafiaChatPanel);
 
+        jailChatTab = new Tab("Hapishane");
+        jailChatTab.setClosable(false);
+        jailChatPanel = new ChatPanel("Mesajınızı yazın...");
+        jailChatTab.setContent(jailChatPanel);
+
         // Sistem mesajları sekmesi
         Tab systemMessagesTab = new Tab("Sistem Mesajları");
         systemMessagesTab.setClosable(false);
@@ -118,10 +125,32 @@ public class GameView extends BorderPane {
         systemMessagesArea.setWrapText(true);
         systemMessagesTab.setContent(systemMessagesArea);
 
+        jailChatTab.setDisable(true);
+
         tabPane.getTabs().addAll(generalChatTab, mafiaChatTab, systemMessagesTab);
         return tabPane;
     }
 
+    // Hapishane sohbetini göstermek/gizlemek için yeni metotlar
+    public void showJailChat() {
+            jailChatTab.setDisable(false);
+            chatTabPane.getSelectionModel().select(jailChatTab);
+            jailChatPanel.addMessage("Sistem: Hapishane sohbet odası açıldı.");
+    }
+
+    public void hideJailChat() {
+            jailChatTab.setDisable(true);
+            jailChatPanel.clearMessages();
+    }
+
+    public void addJailMessage(String message) {
+            jailChatPanel.addMessage(message);
+    }
+
+    // Getter metodu
+    public ChatPanel getJailChatPanel() {
+        return jailChatPanel;
+    }
 
     public void updatePhase(GameState.Phase phase) {
         System.out.println("View Faz Güncellemesi: " + phase); // Debug log

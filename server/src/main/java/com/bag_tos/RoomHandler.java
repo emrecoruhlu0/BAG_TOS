@@ -100,9 +100,6 @@ public class RoomHandler {
         broadcastToRoom(jailRoom, jailStartMessage);
     }
 
-    /**
-     * Gardiyan odasını kapatır
-     */
     public void closeJailRoom(String jailor) {
         String jailRoom = "JAIL_" + jailor;
 

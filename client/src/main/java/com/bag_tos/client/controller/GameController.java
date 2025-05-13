@@ -73,6 +73,17 @@ public class GameController {
                 view.addSystemMessage("Mafya sohbetini kullanma yetkiniz yok!");
             }
         });
+        // Hapishane sohbet mesajı gönderme
+        view.getJailChatPanel().setOnSendMessage(message -> {
+            if (!message.isEmpty()) {
+                // Sohbet mesajı için Message nesnesi oluştur
+                Message chatMessage = new Message(MessageType.CHAT);
+                ChatRequest chatRequest = new ChatRequest(message, "JAIL");
+                chatMessage.addData("chatRequest", chatRequest);
+
+                networkManager.sendMessage(chatMessage);
+            }
+        });
 
         // Oyuncu seçimi
         view.getPlayerListView().setOnPlayerSelected(player -> {
@@ -81,6 +92,28 @@ public class GameController {
 
         // Aksiyonları yapılandır
         setupActionHandlers();
+    }
+
+    public void handleJailEvent(String event, Message message) {
+        switch (event) {
+            case "JAIL_START":
+                view.showJailChat();
+                view.addSystemMessage("Hapishane sohbet odası açıldı.");
+                break;
+
+            case "JAIL_END":
+                view.hideJailChat();
+                view.addSystemMessage("Hapishane sohbet odası kapatıldı.");
+                break;
+
+            case "PLAYER_JAILED":
+                String jailedPlayer = (String) message.getDataValue("target");
+                if (jailedPlayer != null && jailedPlayer.equals(gameState.getCurrentUsername())) {
+                    view.showJailChat();
+                    view.addSystemMessage("Bu gece hapsedildiniz!");
+                }
+                break;
+        }
     }
 
     private void setupActionHandlers() {
@@ -116,6 +149,12 @@ public class GameController {
             } else if (role.equals("Doktor")) {
                 // Doktor iyileştirme aksiyonu
                 view.getActionPanel().addHealAction(target -> {
+                    // Kendi üzerinde aksiyon kontrolü
+                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                            target.getUsername().equals(gameState.getCurrentUsername())) {
+                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız! eutrhgşekgjm");
+                        return;
+                    }
 
                     // İyileştirme aksiyonu için Message nesnesi oluştur
                     Message actionMessage = new Message(MessageType.ACTION);
@@ -265,6 +304,44 @@ public class GameController {
             }
         });
     }
+
+    public void forceUpdateActionPanel() {
+        Platform.runLater(() -> {
+            if (gameState.getPlayers().isEmpty()) {
+                System.out.println("UYARI: Oyuncu listesi forceUpdateActionPanel'de boş!");
+
+                // Oyuncu listesi boşsa, tüm oyuncuları almanın başka bir yolunu deneyebiliriz
+                // Örneğin sunucudan yeni bir oyuncu listesi isteği gönderebiliriz
+                // veya varsayılan hedefler belirleyebiliriz
+
+                // Şimdilik geçici bir çözüm olarak tüm aksiyon butonlarını devre dışı bırakalım
+                view.getActionPanel().clearActions();
+                view.getActionPanel().setDisable(true);
+
+                // Kullanıcıya bilgi ver
+                view.addSystemMessage("Hedef listesi henüz hazır değil, lütfen bekleyin...");
+
+                // Belirli bir süre sonra tekrar dene
+                new java.util.Timer().schedule(
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                Platform.runLater(() -> forceUpdateActionPanel());
+                            }
+                        },
+                        2000  // 2 saniye sonra tekrar dene
+                );
+
+                return;
+            }
+
+            // Oyuncu listesi doluysa normal güncelleme yap
+            view.getActionPanel().setDisable(false);
+            updateActions(List.of(gameState.getAvailableAction().split(", ")));
+            System.out.println("Aksiyon paneli zorla güncellendi, oyuncu sayısı: " + gameState.getPlayers().size());
+        });
+    }
+
     public void updateUI() {
         Platform.runLater(() -> {
             updatePhaseDisplay();
@@ -372,7 +449,7 @@ public class GameController {
             System.out.println("Güncel rol: " + currentRole + ", Kullanıcı: " + currentUsername);
 
             // Doktor rolü için özel durum kontrolü
-            if ("Doktor".equals(currentRole)) {
+            if ("Doktor".equals(currentRole) && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
                 // Doktor tüm oyuncuları görebilir (kendisi dahil)
                 view.getActionPanel().setAlivePlayers(gameState.getPlayers());
             } else {

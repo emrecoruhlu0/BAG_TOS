@@ -7,13 +7,9 @@
     <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/MessageType.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/bag_tos/common/message/MessageType.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,24 +48,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Application.ClientApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Application.Server.executor&quot;: &quot;Run&quot;,
-    &quot;Application.client1.executor&quot;: &quot;Run&quot;,
-    &quot;Application.client2.executor&quot;: &quot;Run&quot;,
-    &quot;Application.client3.executor&quot;: &quot;Run&quot;,
-    &quot;Application.client4.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;javafx-gui&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/emrec/OneDrive/Masaüstü/Bilgisayar Ders/2. Sınıf/2. Dönem/Bilgisayar Ağlarına Giriş/BAG_TOS&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.ClientApplication.executor": "Run",
+    "Application.Server.executor": "Run",
+    "Application.client1.executor": "Run",
+    "Application.client2.executor": "Run",
+    "Application.client3.executor": "Run",
+    "Application.client4.executor": "Run",
+    "Application.client5.executor": "Run",
+    "Application.client6.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "javafx-gui",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/emrec/OneDrive/Masaüstü/Bilgisayar Ders/2. Sınıf/2. Dönem/Bilgisayar Ağlarına Giriş/BAG_TOS",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\emrec\OneDrive\Masaüstü\Bilgisayar Ders\2. Sınıf\2. Dönem\Bilgisayar Ağlarına Giriş\BAG_TOS\common\src\main\java" />
@@ -112,15 +110,33 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="client5" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client6" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.bag_tos.client.ClientLauncher" />
+      <module name="client" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="4 tane" type="CompoundRunConfigurationType">
       <toRun name="Server" type="Application" />
       <toRun name="client1" type="Application" />
       <toRun name="client2" type="Application" />
       <toRun name="client3" type="Application" />
       <toRun name="client4" type="Application" />
+      <toRun name="client5" type="Application" />
+      <toRun name="client6" type="Application" />
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Application.client5" />
+      <item itemvalue="Application.client6" />
       <item itemvalue="Application.Server" />
       <item itemvalue="Application.client1" />
       <item itemvalue="Application.client2" />
@@ -150,16 +166,5 @@
         </entry>
       </map>
     </option>
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java</url>
-          <line>458</line>
-          <option name="timeStamp" value="3" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>

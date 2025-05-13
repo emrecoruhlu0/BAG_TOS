@@ -337,6 +337,29 @@ public class ClientHandler implements Runnable {
                         }
                     }
 
+                    if (actionType == ActionType.JAIL && game.getCurrentPhase() == GamePhase.DAY) {
+                        Role role = game.getRole(username);
+                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
+                            game.registerJailAction(username, target);
+
+                            // Başarılı işlem bildirimi
+                            ActionResultResponse resultResponse = new ActionResultResponse(
+                                    ActionType.JAIL.name(),
+                                    target,
+                                    "SUCCESS",
+                                    "Hapsetme işlemi kaydedildi. Gece fazında etkili olacak."
+                            );
+
+                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                            resultMessage.addData("actionResult", resultResponse);
+
+                            sendJsonMessage(resultMessage);
+                        } else {
+                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                        }
+                        return;
+                    }
+
                     // Mevcut faz kontrolü ve aksiyonların işlenmesi
                     if (game.getCurrentPhase() == GamePhase.NIGHT) {
                         // Gece aksiyonları

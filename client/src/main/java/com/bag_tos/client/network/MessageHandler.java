@@ -19,6 +19,8 @@ public class MessageHandler implements NetworkManager.MessageListener {
     private LobbyController lobbyController;
     private GameState gameState;
 
+    private boolean initialPlayerUpdateDone = false;
+
     // GameController için constructor
     public MessageHandler(GameController gameController, GameState gameState) {
         this.gameController = gameController;
@@ -55,11 +57,13 @@ public class MessageHandler implements NetworkManager.MessageListener {
                         updateTimeOnly();
                     } else {
                         // TAM OYUN DURUMU GÜNCELLEMESİ
+                        System.out.println("ELSE İÇİNDE OLDU BU");
                         updateFullUI();  // Bu metot çağrısı faz değişikliklerinde de olmalı
                     }
                     break;
 
                 case PHASE_CHANGE:  // YENİ EKLENEN
+                    System.out.println("PHASE CHANGE'DE OLDU BU");
                     handlePhaseChangeMessage(message);
                     break;
 
@@ -185,8 +189,13 @@ public class MessageHandler implements NetworkManager.MessageListener {
             }
 
             // Oyuncu listesini güncelle
-            if (gameStateResponse != null && gameStateResponse.getPlayers() != null) {
+            if (!initialPlayerUpdateDone && gameStateResponse != null && gameStateResponse.getPlayers() != null) {
                 updatePlayerList(gameStateResponse.getPlayers());
+                updateFullUI();
+
+                // İlk güncellemeyi tamamlandı olarak işaretle
+                initialPlayerUpdateDone = true;
+                System.out.println("İlk oyuncu listesi güncellemesi tamamlandı");
             } else if (message.getDataValue("players") != null) {
                 List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
                 for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
@@ -291,8 +300,19 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
 
         // Faz değiştiyse UI'ı tam güncelle
-        if (fazDegisti) {
-            updateFullUI();
+        if (fazDegisti && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+            // Kısa bir gecikme sonra aksiyon panelini zorla güncelle
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            if (gameController != null) {
+                                gameController.forceUpdateActionPanel();
+                            }
+                        }
+                    },
+                    1000  // 1 saniye gecikme
+            );
         }
     }
 
@@ -440,20 +460,30 @@ public class MessageHandler implements NetworkManager.MessageListener {
             if (message.getDataValue("actionResult") != null) {
                 String jsonStr = JsonUtils.toJson(message.getDataValue("actionResult"));
                 ActionResultResponse response = JsonUtils.fromJson(jsonStr, ActionResultResponse.class);
-
-                if (response != null) {
-                    String actionMessage = "Aksiyon sonucu: " + response.getMessage();
-                    gameState.addSystemMessage(actionMessage);
-
+                List<String> actions = (List<String>) message.getDataValue("availableActions");
+                if (actions != null && !actions.isEmpty()) {
                     if (gameController != null) {
-                        gameController.handleSystemMessage(actionMessage);
-                    }
+                        // Aksiyonları güncellemeden önce kısa bir gecikme ekleyelim
+                        new java.util.Timer().schedule(
+                                new java.util.TimerTask() {
+                                    @Override
+                                    public void run() {
+                                        Platform.runLater(() -> {
+                                            // GameState'deki oyuncu listesini kontrol et
+                                            if (gameState.getPlayers().isEmpty()) {
+                                                System.out.println("UYARI: Oyuncu listesi boş, aksiyonlar güncellenemez!");
+                                                return;
+                                            }
 
-                    // Öldürüldüyse durumu güncelle
-                    if ("KILLED".equals(response.getResult()) || "EXECUTED".equals(response.getResult())) {
-                        if (response.getTarget() != null) {
-                            updatePlayerStatus(response.getTarget(), false);
-                        }
+                                            // Artık liste dolu, aksiyonları güncelle
+                                            gameController.updateActions(actions);
+                                            System.out.println("Aksiyonlar gecikmeyle güncellendi, oyuncu sayısı: "
+                                                    + gameState.getPlayers().size());
+                                        });
+                                    }
+                                },
+                                500  // 500 ms gecikme
+                        );
                     }
                 }
             }
@@ -519,14 +549,34 @@ public class MessageHandler implements NetworkManager.MessageListener {
     }
 
     private void updatePlayerList(List<PlayerInfo> playerInfos) {
-        if (playerInfos == null) return;
+        if (playerInfos == null) {
+            System.out.println("UYARI: updatePlayerList'e null playerInfos gönderildi!");
+            return;
+        }
+
+        System.out.println("Oyuncu listesi güncelleniyor, toplam: " + playerInfos.size() + " oyuncu");
+
+        // Oyuncu listesini tamamen temizle ve yeniden oluştur
+        // Bu, mevcut oyuncularla ilgili herhangi bir sorun olması durumunda daha güvenlidir
+        gameState.getPlayers().clear();
 
         for (PlayerInfo info : playerInfos) {
-            Player player = findOrCreatePlayer(info.getUsername());
-            player.setAlive(info.isAlive());
+            Player newPlayer = new Player(info.getUsername());
+            newPlayer.setAlive(info.isAlive());
             if (info.getRole() != null && !info.getRole().equals("UNKNOWN")) {
-                player.setRole(info.getRole());
+                newPlayer.setRole(info.getRole());
             }
+
+            gameState.addPlayer(newPlayer);
+            System.out.println("Oyuncu eklendi: " + newPlayer.getUsername() + ", hayatta: " + newPlayer.isAlive());
+        }
+
+        // Oyuncu listesi güncellemesinden sonra aksiyon panelini tekrar güncelle
+        if (gameController != null && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+            Platform.runLater(() -> {
+                gameController.updateActionsOnly();
+                System.out.println("Oyuncu listesi güncellemesinden sonra aksiyonlar tekrar güncellendi");
+            });
         }
     }
 
