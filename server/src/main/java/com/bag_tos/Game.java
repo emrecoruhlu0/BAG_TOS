@@ -45,6 +45,9 @@ public class Game {
     private String jailedPlayer = null;
     private String jailorPlayer = null;
 
+    private final Object phaseLock = new Object();
+    private volatile boolean phaseTransitionInProgress = false;
+
     private ScheduledFuture<?> phaseTransitionTask;
 
     public Game(List<ClientHandler> players) {
@@ -163,72 +166,121 @@ public class Game {
     }
 
     private void startNightPhase() {
-        cancelAllTimers();
+        synchronized (phaseLock) {
+            // Halihazırda bir faz geçişi devam ediyorsa çık
+            if (phaseTransitionInProgress) {
+                System.out.println("UYARI: Halihazırda bir faz geçişi devam ediyor, startNightPhase iptal edildi");
+                return;
+            }
 
-        System.out.println("startNightPhase çağrıldı, mevcut faz: " + currentPhase);
+            // Eğer zaten gece fazındaysak, return
+            if (currentPhase == GamePhase.NIGHT) {
+                System.out.println("UYARI: Zaten gece fazındayız, startNightPhase iptal edildi");
+                return;
+            }
 
-        // Eğer zaten gece fazındaysak, return
-        if (currentPhase == GamePhase.NIGHT) {
-            System.out.println("HATA: Zaten gece fazındayız!");
-            return;
+            try {
+                phaseTransitionInProgress = true;
+                System.out.println("===== GECE FAZI BAŞLATILIYOR =====");
+
+                // Zamanlayıcıları temizle
+                cancelAllTimers();
+
+                currentPhase = GamePhase.NIGHT;
+                remainingSeconds = GameConfig.NIGHT_PHASE_DURATION;
+                nightActions.clear();
+
+                // Hapishane odasını kur
+                if (jailedPlayer != null && jailorPlayer != null) {
+                    roomHandler.createJailRoom(jailorPlayer, jailedPlayer);
+
+                    // Hapsedilen oyuncuya bildirim
+                    Message jailMessage = new Message(MessageType.GAME_STATE);
+                    jailMessage.addData("event", "PLAYER_JAILED");
+                    jailMessage.addData("message", "Bu gece gardiyan tarafından hapsedildiniz!");
+
+                    players.stream()
+                            .filter(p -> p.getUsername().equals(jailedPlayer))
+                            .findFirst()
+                            .ifPresent(p -> p.sendJsonMessage(jailMessage));
+                }
+
+                broadcastPhaseChange(GamePhase.NIGHT);
+
+                // Kısa bir bekleme ekleyin ki broadcastPhaseChange tamamlanabilsin
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // Oyun durumunu yayınla, tüm oyuncuların güncel bilgilere sahip olmasını sağla
+                broadcastGameState();
+
+                // Zamanlayıcıları başlat
+                startCountdown();
+                scheduleNightActions();
+                sendAvailableActions();
+
+            } finally {
+                phaseTransitionInProgress = false;
+            }
         }
-
-        currentPhase = GamePhase.NIGHT;
-        remainingSeconds = GameConfig.NIGHT_PHASE_DURATION;
-        nightActions.clear();
-
-        // Hapishane odasını kur
-        if (jailedPlayer != null && jailorPlayer != null) {
-            roomHandler.createJailRoom(jailorPlayer, jailedPlayer);
-
-            // Hapsedilen oyuncuya bildirim
-            Message jailMessage = new Message(MessageType.GAME_STATE);
-            jailMessage.addData("event", "PLAYER_JAILED");
-            jailMessage.addData("message", "Bu gece gardiyan tarafından hapsedildiniz!");
-
-            players.stream()
-                    .filter(p -> p.getUsername().equals(jailedPlayer))
-                    .findFirst()
-                    .ifPresent(p -> p.sendJsonMessage(jailMessage));
-        }
-
-        broadcastPhaseChange(GamePhase.NIGHT);
-        //broadcastGameState();
-        startCountdown();
-        scheduleNightActions();
-        sendAvailableActions();
     }
-
     private void startDayPhase() {
+        synchronized (phaseLock) {
+            // Halihazırda bir faz geçişi devam ediyorsa çık
+            if (phaseTransitionInProgress) {
+                System.out.println("UYARI: Halihazırda bir faz geçişi devam ediyor, startDayPhase iptal edildi");
+                return;
+            }
 
-        System.out.println("===== GÜNDÜZ FAZI BAŞLATILIYOR =====");
+            // Eğer zaten gündüz fazındaysak, return
+            if (currentPhase == GamePhase.DAY) {
+                System.out.println("UYARI: Zaten gündüz fazındayız, startDayPhase iptal edildi");
+                return;
+            }
 
-        // Zamanlayıcıları temizle
-        cancelAllTimers();
+            try {
+                phaseTransitionInProgress = true;
+                System.out.println("===== GÜNDÜZ FAZI BAŞLATILIYOR =====");
 
-        // Eğer zaten gündüz fazındaysak, return
-        if (currentPhase == GamePhase.DAY) {
-            System.out.println("HATA: Zaten gündüz fazındayız!");
-            return;
+                // Zamanlayıcıları temizle
+                cancelAllTimers();
+
+                currentPhase = GamePhase.DAY;
+                remainingSeconds = GameConfig.DAY_PHASE_DURATION;
+                votes.clear();
+
+                // Kısa bir bekleme ekleyin
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                broadcastPhaseChange(GamePhase.DAY);
+
+                // Kısa bir bekleme ekleyin ki broadcastPhaseChange tamamlanabilsin
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // Oyun durumunu yayınla, tüm oyuncuların güncel bilgilere sahip olmasını sağla
+                broadcastGameState();
+
+                // Zamanlayıcıları başlat
+                startCountdown();
+                scheduleDayActions();
+                sendAvailableActions();
+
+            } finally {
+                phaseTransitionInProgress = false;
+            }
         }
-
-        currentPhase = GamePhase.DAY;
-        remainingSeconds = GameConfig.DAY_PHASE_DURATION;
-        votes.clear();
-
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        broadcastPhaseChange(GamePhase.DAY);
-        //broadcastGameState();
-        startCountdown();
-        scheduleDayActions();
-        sendAvailableActions();
     }
-
     public Message createGameStateMessage() {
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
@@ -270,16 +322,17 @@ public class Game {
         phaseChangeMessage.addData("phaseDuration", newPhase == GamePhase.NIGHT ?
                 GameConfig.NIGHT_PHASE_DURATION : GameConfig.DAY_PHASE_DURATION);
 
-        // YENİ - Oyun durumu bilgilerini ekle
+        // Kesin zaman bilgisi ekle
         phaseChangeMessage.addData("remainingTime", remainingSeconds);
 
+        // Diğer oyun durumu bilgilerini ekle
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
             String username = player.getUsername();
             boolean alive = alivePlayers.contains(username);
             String roleName = "UNKNOWN";
 
-            // Ölü oyuncuların rollerini aç:
+            // Ölü oyuncuların rollerini aç
             if (!alive && GameConfig.REVEAL_ROLES_ON_DEATH) {
                 Role role = roles.get(username);
                 if (role != null) {
@@ -291,39 +344,50 @@ public class Game {
         }
         phaseChangeMessage.addData("players", playerInfoList);
 
+        // Ekstra bir flag ekle ki client tarafı bir sonraki GAME_STATE mesajında faz değişimini yeniden uygulamasın
+        phaseChangeMessage.addData("phaseChangeMessage", true);
+
+        // Mesajın ne zaman gönderildiğini belirtmek için timestamp ekle
+        phaseChangeMessage.addData("timestamp", System.currentTimeMillis());
+
         // Tüm oyunculara bildir
+        int sentCount = 0;
         for (ClientHandler player : players) {
             if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
-                player.sendJsonMessage(phaseChangeMessage);
-                System.out.println("Faz değişimi " + player.getUsername() + " oyuncusuna gönderildi");
+                try {
+                    player.sendJsonMessage(phaseChangeMessage);
+                    sentCount++;
+                } catch (Exception e) {
+                    System.err.println("Faz değişimi " + player.getUsername() + " oyuncusuna gönderilirken hata: " + e.getMessage());
+                }
             }
         }
 
-        // YENİ - Kısa bir süre sonra güncel oyun durumunu gönder:
-        try {
-            Thread.sleep(100); // 100ms bekle
-            broadcastGameState();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        System.out.println("Faz değişimi " + sentCount + " oyuncuya gönderildi");
     }
-
     public void broadcastGameState() {
         try {
             Message gameStateMessage = createGameStateMessage();
 
-            // Faz değişimi YAPMAYIN bildirimi ekleyin
+            // Faz değişimi olmadığını belirt
             gameStateMessage.addData("skipPhaseUpdate", true);
 
-            // Log ekleyin
+            // Timestamp ekle
+            gameStateMessage.addData("timestamp", System.currentTimeMillis());
+
+            // Log ekle
             System.out.println("Oyun durumu yayınlanıyor: Faz=" + currentPhase + ", Kalan Süre=" + remainingSeconds);
 
             // Tüm oyunculara bildir
             int sentCount = 0;
             for (ClientHandler player : players) {
                 if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
-                    player.sendJsonMessage(gameStateMessage);
-                    sentCount++;
+                    try {
+                        player.sendJsonMessage(gameStateMessage);
+                        sentCount++;
+                    } catch (Exception e) {
+                        System.err.println("Oyun durumu " + player.getUsername() + " oyuncusuna gönderilirken hata: " + e.getMessage());
+                    }
                 }
             }
 
@@ -333,18 +397,28 @@ public class Game {
             e.printStackTrace();
         }
     }
-
     private void cancelAllTimers() {
-        if (countdownTask != null && !countdownTask.isDone()) {
-            countdownTask.cancel(false);
+        System.out.println("Tüm zamanlayıcılar iptal ediliyor...");
+
+        if (countdownTask != null) {
+            countdownTask.cancel(true);
             countdownTask = null;
+            System.out.println("Geri sayım zamanlayıcısı iptal edildi");
         }
-        if (phaseTransitionTask != null && !phaseTransitionTask.isDone()) {
-            phaseTransitionTask.cancel(false);
+
+        if (phaseTransitionTask != null) {
+            phaseTransitionTask.cancel(true);
             phaseTransitionTask = null;
+            System.out.println("Faz geçiş zamanlayıcısı iptal edildi");
+        }
+
+        // Timer'ı temizle ve yeniden oluştur
+        if (timer != null) {
+            timer.shutdownNow();
+            System.out.println("Timer servisi kapatıldı ve yeniden başlatılıyor");
+            timer = Executors.newScheduledThreadPool(2);
         }
     }
-
     private void sendAvailableActions() {
         System.out.println("sendAvailableActions çağrıldı, mevcut faz: " + currentPhase);
 
@@ -549,40 +623,78 @@ public class Game {
     }
 
     private void processNightActions() {
-        if (gameOver) return;
+        System.out.println("Gece aksiyonları işleniyor...");
 
-        Map<ActionType, Map<String, String>> actionTargets = collectActionTargets();
-
-        // Önce gardiyan aksiyonlarını işle
-        processJailorActions();
-        processMafiaActions(actionTargets.getOrDefault(ActionType.KILL, new HashMap<>()));
-        processDoctorActions(actionTargets.getOrDefault(ActionType.HEAL, new HashMap<>()));
-        processSheriffActions(actionTargets.getOrDefault(ActionType.INVESTIGATE, new HashMap<>()));
-
-        // Hapishane odasını kapat
-        if (jailorPlayer != null) {
-            roomHandler.closeJailRoom(jailorPlayer);
+        if (gameOver) {
+            System.out.println("Oyun bitmiş, gece aksiyonları işlenmiyor");
+            return;
         }
 
-        // Hapishane durumunu sıfırla
-        resetJailState();
-        checkWinConditions();
+        if (currentPhase != GamePhase.NIGHT) {
+            System.out.println("UYARI: Mevcut faz GECE değil, gece aksiyonları işlenmiyor. Mevcut faz: " + currentPhase);
+            return;
+        }
 
-        if (!gameOver && currentPhase != GamePhase.DAY) {
-            System.out.println("Gece aksiyonları tamamlandı, gündüz fazına geçiliyor...");
-            startDayPhase();
+        try {
+            Map<ActionType, Map<String, String>> actionTargets = collectActionTargets();
+
+            // Önce gardiyan aksiyonlarını işle
+            processJailorActions();
+            processMafiaActions(actionTargets.getOrDefault(ActionType.KILL, new HashMap<>()));
+            processDoctorActions(actionTargets.getOrDefault(ActionType.HEAL, new HashMap<>()));
+            processSheriffActions(actionTargets.getOrDefault(ActionType.INVESTIGATE, new HashMap<>()));
+
+            // Hapishane odasını kapat
+            if (jailorPlayer != null) {
+                roomHandler.closeJailRoom(jailorPlayer);
+            }
+
+            // Hapishane durumunu sıfırla
+            resetJailState();
+            checkWinConditions();
+
+            // Senkronize bir şekilde faz değişikliğini yap
+            synchronized (phaseLock) {
+                if (!gameOver && currentPhase == GamePhase.NIGHT) {
+                    System.out.println("Gece aksiyonları tamamlandı, gündüz fazına geçiliyor...");
+                    startDayPhase();
+                } else {
+                    System.out.println("Gece aksiyonları tamamlandı, ancak faz değiştirilmiyor. Mevcut durum: "
+                            + "gameOver=" + gameOver + ", currentPhase=" + currentPhase);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Gece aksiyonları işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
+    public String getJailedPlayer() {
+        return jailedPlayer;
+    }
+
+    public String getJailorPlayer() {
+        return jailorPlayer;
+    }
+
     private void processJailorActions() {
-        if (jailedPlayer == null || jailorPlayer == null) return;
+        if (jailedPlayer == null || jailorPlayer == null) {
+            System.out.println("Hapsedilen veya gardiyan oyuncu yok, jailor aksiyonları atlanıyor");
+            return;
+        }
+
+        System.out.println("Jailor aksiyonları işleniyor - Gardiyan: " + jailorPlayer + ", Hapsedilen: " + jailedPlayer);
 
         // Hapsedilen oyuncu hiçbir aksiyon yapamaz
         nightActions.remove(jailedPlayer);
 
         // İnfaz kontrolü
         Map<ActionType, String> jailorActions = nightActions.getOrDefault(jailorPlayer, new HashMap<>());
+        System.out.println("Gardiyan aksiyonları: " + jailorActions);
+
         if (jailorActions.containsKey(ActionType.EXECUTE)) {
+            System.out.println("Gardiyan infaz aksiyonu gerçekleştiriyor!");
+
             // Gardiyan infaz aksiyonu aldıysa, hapsedilen oyuncu öldürülür
             killPlayer(jailedPlayer, "EXECUTION");
 
@@ -598,6 +710,8 @@ public class Game {
                     player.sendJsonMessage(executionMessage);
                 }
             }
+        } else {
+            System.out.println("Gardiyan infaz aksiyonu almadı, hapsedilen oyuncu hayatta kaldı");
         }
     }
 
@@ -889,39 +1003,58 @@ public class Game {
     }
 
     private void processVotes() {
-        if (gameOver) return;
+        System.out.println("Oylar işleniyor...");
 
-        Map<String, Integer> voteCounts = new HashMap<>();
-
-        for (String target : votes.values()) {
-            voteCounts.put(target, voteCounts.getOrDefault(target, 0) + 1);
+        if (gameOver) {
+            System.out.println("Oyun bitmiş, oylar işlenmiyor");
+            return;
         }
 
+        if (currentPhase != GamePhase.DAY) {
+            System.out.println("UYARI: Mevcut faz GÜNDÜZ değil, oylar işlenmiyor. Mevcut faz: " + currentPhase);
+            return;
+        }
 
-        String executedPlayer = null;
-        int maxVotes = 0;
+        try {
+            Map<String, Integer> voteCounts = new HashMap<>();
 
-        for (Map.Entry<String, Integer> entry : voteCounts.entrySet()) {
-            if (entry.getValue() > maxVotes) {
-                maxVotes = entry.getValue();
-                executedPlayer = entry.getKey();
+            for (String target : votes.values()) {
+                voteCounts.put(target, voteCounts.getOrDefault(target, 0) + 1);
             }
-        }
 
-        if (executedPlayer != null && maxVotes > 0) {
-            executePlayer(executedPlayer, new HashMap<>(votes));
-        } else {
-            notifyNoExecution();
-        }
+            String executedPlayer = null;
+            int maxVotes = 0;
 
-        checkWinConditions();
+            for (Map.Entry<String, Integer> entry : voteCounts.entrySet()) {
+                if (entry.getValue() > maxVotes) {
+                    maxVotes = entry.getValue();
+                    executedPlayer = entry.getKey();
+                }
+            }
 
-        if (!gameOver && currentPhase != GamePhase.NIGHT) {
-            System.out.println("Gündüz aksiyonları tamamlandı, gece fazına geçiliyor...");
-            startNightPhase();
+            if (executedPlayer != null && maxVotes > 0) {
+                executePlayer(executedPlayer, new HashMap<>(votes));
+            } else {
+                notifyNoExecution();
+            }
+
+            checkWinConditions();
+
+            // Senkronize bir şekilde faz değişikliğini yap
+            synchronized (phaseLock) {
+                if (!gameOver && currentPhase == GamePhase.DAY) {
+                    System.out.println("Gündüz aksiyonları tamamlandı, gece fazına geçiliyor...");
+                    startNightPhase();
+                } else {
+                    System.out.println("Gündüz aksiyonları tamamlandı, ancak faz değiştirilmiyor. Mevcut durum: "
+                            + "gameOver=" + gameOver + ", currentPhase=" + currentPhase);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Oylar işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
     private void executePlayer(String playerToExecute, Map<String, String> voteDetails) {
         alivePlayers.remove(playerToExecute);
 

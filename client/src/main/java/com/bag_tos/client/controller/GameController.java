@@ -137,8 +137,26 @@ public class GameController {
         try {
             view.updatePhase(currentPhase);
 
-            // YENİ - Faz değişince chat kontrollerini güncelle
+            // Faz değişince chat kontrollerini güncelle
             updateChatControls();
+
+            // Faz değişince aksiyon panelini güncelle (gecikmeli)
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            Platform.runLater(() -> {
+                                try {
+                                    System.out.println("Faz değişiminden sonra aksiyonlar yeniden yükleniyor...");
+                                    updateActionsOnly();
+                                } catch (Exception e) {
+                                    System.err.println("Aksiyon güncellemesi sırasında hata: " + e.getMessage());
+                                    e.printStackTrace();
+                                }
+                            });
+                        }
+                    }, 300  // 300ms gecikme
+            );
 
             System.out.println("Faz gösterimi güncellendi: " + currentPhase);
         } catch (Exception e) {
@@ -146,20 +164,36 @@ public class GameController {
             e.printStackTrace();
         }
     }
-
     private void setupActionHandlers() {
         view.getActionPanel().clearActions();
 
         System.out.println("setupActionHandlers çağrıldı");
         System.out.println("Faz: " + gameState.getCurrentPhase() + ", Rol: " + gameState.getCurrentRole());
+
+        // Oyuncu listesi kontrolü
+        if (gameState.getPlayers().isEmpty()) {
+            System.out.println("UYARI: Oyuncu listesi boş, aksiyonlar eklenemiyor!");
+            return;
+        }
+
+        // Geçerli oyuncu bilgileri
+        String currentUsername = gameState.getCurrentUsername();
+        String currentRole = gameState.getCurrentRole();
+
+        // Rol ve faza uygun oyuncuları aksiyon paneline ekle
+        if (currentRole != null && currentRole.equals("Doktor")) {
+            view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+        } else {
+            view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
+        }
+
         System.out.println("Hedef sayısı: " + view.getActionPanel().getTargetCount());
 
         // Rol ve faza göre aksiyonları yapılandır
-        String role = gameState.getCurrentRole();
         GameState.Phase phase = gameState.getCurrentPhase();
 
         if (phase == GameState.Phase.NIGHT) {
-            if (role.equals("Mafya")) {
+            if (currentRole.equals("Mafya")) {
                 // Mafya öldürme aksiyonu
                 view.getActionPanel().addKillAction(target -> {
                     // Kendi üzerinde aksiyon kontrolü
@@ -177,13 +211,14 @@ public class GameController {
                     networkManager.sendMessage(actionMessage);
                     view.addSystemMessage("Hedef seçildi: " + target.getUsername());
                 });
-            } else if (role.equals("Doktor")) {
+            } else if (currentRole.equals("Doktor")) {
                 // Doktor iyileştirme aksiyonu
                 view.getActionPanel().addHealAction(target -> {
-                    // Kendi üzerinde aksiyon kontrolü
+                    // Kendi üzerinde aksiyon kontrolü - Doktor rolüne özel muamele
                     if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                            target.getUsername().equals(gameState.getCurrentUsername())) {
-                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız! eutrhgşekgjm");
+                            target.getUsername().equals(gameState.getCurrentUsername()) &&
+                            !"Doktor".equals(currentRole)) {
+                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
                         return;
                     }
 
@@ -195,7 +230,7 @@ public class GameController {
                     networkManager.sendMessage(actionMessage);
                     view.addSystemMessage("Hedef seçildi: " + target.getUsername());
                 });
-            } else if (role.equals("Serif")) {
+            } else if (currentRole.equals("Serif")) {
                 // Şerif araştırma aksiyonu
                 view.getActionPanel().addInvestigateAction(target -> {
                     // Kendi üzerinde aksiyon kontrolü
@@ -212,6 +247,16 @@ public class GameController {
 
                     networkManager.sendMessage(actionMessage);
                     view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                });
+            } else if (currentRole.equals("Gardiyan")) {
+                // Gardiyanın infaz etme aksiyonu (gece)
+                view.getActionPanel().addExecuteAction(target -> {
+                    Message actionMessage = new Message(MessageType.ACTION);
+                    ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
+                    actionMessage.addData("actionRequest", actionRequest);
+
+                    networkManager.sendMessage(actionMessage);
+                    view.addSystemMessage("İnfaz kararı verildi!");
                 });
             }
         } else if (phase == GameState.Phase.DAY) {
@@ -232,110 +277,163 @@ public class GameController {
                 networkManager.sendMessage(voteMessage);
                 view.addSystemMessage("Oy verildi: " + target.getUsername());
             });
-        }
-    }
 
+            // Gardiyan hapsetme aksiyonu (gündüz)
+            if (currentRole.equals("Gardiyan")) {
+                view.getActionPanel().addJailAction(target -> {
+                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                            target.getUsername().equals(gameState.getCurrentUsername())) {
+                        view.addSystemMessage("Kendinizi hapse atamazsınız!");
+                        return;
+                    }
+
+                    Message actionMessage = new Message(MessageType.ACTION);
+                    ActionRequest actionRequest = new ActionRequest(ActionType.JAIL.name(), target.getUsername());
+                    actionMessage.addData("actionRequest", actionRequest);
+
+                    networkManager.sendMessage(actionMessage);
+                    view.addSystemMessage("Hapsedilecek oyuncu seçildi: " + target.getUsername());
+                });
+            }
+        }
+
+        System.out.println("Aksiyon handler'ları başarıyla kuruldu, faz: " + phase + ", rol: " + currentRole);
+    }
     // MessageHandler tarafından kullanılacak metot (sunucudan gelen aksiyonlara göre UI'ı günceller)
     public void updateActions(List<String> availableActions) {
         Platform.runLater(() -> {
-            view.getActionPanel().clearActions();
+            try {
+                view.getActionPanel().clearActions();
 
-            // Geçerli oyuncu bilgileri
-            String currentUsername = gameState.getCurrentUsername();
-            String currentRole = gameState.getCurrentRole();
+                // Geçerli oyuncu bilgileri
+                String currentUsername = gameState.getCurrentUsername();
+                String currentRole = gameState.getCurrentRole();
 
-            System.out.println("Aksiyon güncelleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
+                System.out.println("Aksiyon güncelleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
 
-            // Doktor için tüm canlı oyuncular (kendisi dahil)
-            if (currentRole != null && currentRole.equals("Doktor")) {
-                System.out.println("Doktor rolü için tüm canlı oyuncular hedef listesine ekleniyor (kendisi dahil)");
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers());
-            } else {
-                // Diğer roller için kendisi hariç oyuncular
-                System.out.println("Diğer roller için canlı oyuncular hedef listesine ekleniyor (kendisi hariç)");
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
-            }
-
-            System.out.println("Toplam hedef sayısı: " + view.getActionPanel().getTargetCount());
-
-            if (availableActions != null) {
-                for (String action : availableActions) {
-                    switch (action) {
-                        case "KILL":
-                            view.getActionPanel().addKillAction(target -> {
-                                Message actionMessage = new Message(MessageType.ACTION);
-                                ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
-                                actionMessage.addData("actionRequest", actionRequest);
-
-                                networkManager.sendMessage(actionMessage);
-                                view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                            });
-                            break;
-                        case "HEAL":
-                            view.getActionPanel().addHealAction(target -> {
-                                // Doktor rolü için özel durum ekle
-                                if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                        target.getUsername().equals(gameState.getCurrentUsername()) &&
-                                        !"Doktor".equals(gameState.getCurrentRole())) {
-                                    // Doktor DEĞİLSE kendine aksiyon yapma
-                                    view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                                    return;
-                                }
-
-                                Message actionMessage = new Message(MessageType.ACTION);
-                                ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
-                                actionMessage.addData("actionRequest", actionRequest);
-
-                                networkManager.sendMessage(actionMessage);
-                                view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                            });
-                            break;
-                        case "INVESTIGATE":
-                            view.getActionPanel().addInvestigateAction(target -> {
-                                Message actionMessage = new Message(MessageType.ACTION);
-                                ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
-                                actionMessage.addData("actionRequest", actionRequest);
-
-                                networkManager.sendMessage(actionMessage);
-                                view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                            });
-                            break;
-                        case "VOTE":
-                            view.getActionPanel().addVoteAction(target -> {
-                                Message voteMessage = new Message(MessageType.VOTE);
-                                VoteRequest voteRequest = new VoteRequest(target.getUsername());
-                                voteMessage.addData("voteRequest", voteRequest);
-
-                                networkManager.sendMessage(voteMessage);
-                                view.addSystemMessage("Oy verildi: " + target.getUsername());
-                            });
-                            break;
-                        case "JAIL":
-                            view.getActionPanel().addJailAction(target -> {
-                                Message actionMessage = new Message(MessageType.ACTION);
-                                ActionRequest actionRequest = new ActionRequest(ActionType.JAIL.name(), target.getUsername());
-                                actionMessage.addData("actionRequest", actionRequest);
-
-                                networkManager.sendMessage(actionMessage);
-                                view.addSystemMessage("Hapsedilecek hedef seçildi: " + target.getUsername());
-                            });
-                            break;
-                        case "EXECUTE":
-                            view.getActionPanel().addExecuteAction(target -> {
-                                Message actionMessage = new Message(MessageType.ACTION);
-                                ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), target.getUsername());
-                                actionMessage.addData("actionRequest", actionRequest);
-
-                                networkManager.sendMessage(actionMessage);
-                                view.addSystemMessage("İnfaz hedefi seçildi: " + target.getUsername());
-                            });
-                            break;
-                    }
+                // Oyuncu listesi kontrolü
+                if (gameState.getPlayers().isEmpty()) {
+                    System.out.println("UYARI: updateActions'da oyuncu listesi boş, aksiyonlar güncellenemiyor!");
+                    return;
                 }
+
+                // Doktor için tüm canlı oyuncular (kendisi dahil)
+                if (currentRole != null && currentRole.equals("Doktor")) {
+                    System.out.println("Doktor rolü için tüm canlı oyuncular hedef listesine ekleniyor (kendisi dahil)");
+                    view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+                } else {
+                    // Diğer roller için kendisi hariç oyuncular
+                    System.out.println("Diğer roller için canlı oyuncular hedef listesine ekleniyor (kendisi hariç)");
+                    view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
+                }
+
+                int targetCount = view.getActionPanel().getTargetCount();
+                System.out.println("Toplam hedef sayısı: " + targetCount);
+
+                if (targetCount == 0) {
+                    System.out.println("UYARI: Hedef listesi boş, aksiyonlar eklenmiyor!");
+                    return;
+                }
+
+                if (availableActions != null && !availableActions.isEmpty()) {
+                    for (String action : availableActions) {
+                        switch (action) {
+                            case "KILL":
+                                view.getActionPanel().addKillAction(target -> {
+                                    Message actionMessage = new Message(MessageType.ACTION);
+                                    ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
+                                    actionMessage.addData("actionRequest", actionRequest);
+
+                                    networkManager.sendMessage(actionMessage);
+                                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                                });
+                                break;
+                            case "HEAL":
+                                view.getActionPanel().addHealAction(target -> {
+                                    // Doktor rolü için özel durum kontrolü
+                                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                            target.getUsername().equals(gameState.getCurrentUsername()) &&
+                                            !"Doktor".equals(gameState.getCurrentRole())) {
+                                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                        return;
+                                    }
+
+                                    Message actionMessage = new Message(MessageType.ACTION);
+                                    ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
+                                    actionMessage.addData("actionRequest", actionRequest);
+
+                                    networkManager.sendMessage(actionMessage);
+                                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                                });
+                                break;
+                            case "INVESTIGATE":
+                                view.getActionPanel().addInvestigateAction(target -> {
+                                    Message actionMessage = new Message(MessageType.ACTION);
+                                    ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
+                                    actionMessage.addData("actionRequest", actionRequest);
+
+                                    networkManager.sendMessage(actionMessage);
+                                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                                });
+                                break;
+                            case "VOTE":
+                                view.getActionPanel().addVoteAction(target -> {
+                                    Message voteMessage = new Message(MessageType.VOTE);
+                                    VoteRequest voteRequest = new VoteRequest(target.getUsername());
+                                    voteMessage.addData("voteRequest", voteRequest);
+
+                                    networkManager.sendMessage(voteMessage);
+                                    view.addSystemMessage("Oy verildi: " + target.getUsername());
+                                });
+                                break;
+                            case "JAIL":
+                                view.getActionPanel().addJailAction(target -> {
+                                    Message actionMessage = new Message(MessageType.ACTION);
+                                    ActionRequest actionRequest = new ActionRequest(ActionType.JAIL.name(), target.getUsername());
+                                    actionMessage.addData("actionRequest", actionRequest);
+
+                                    networkManager.sendMessage(actionMessage);
+                                    view.addSystemMessage("Hapsedilecek hedef seçildi: " + target.getUsername());
+                                });
+                                break;
+                            case "EXECUTE":
+                                view.getActionPanel().addExecuteAction(target -> {
+                                    try {
+                                        // İnfaz aksiyonu için mesaj oluştur
+                                        Message actionMessage = new Message(MessageType.ACTION);
+                                        ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
+                                        actionMessage.addData("actionRequest", actionRequest);
+
+                                        boolean sent = networkManager.sendMessage(actionMessage);
+                                        if (sent) {
+                                            view.addSystemMessage("İnfaz kararı verildi!");
+                                        } else {
+                                            view.addSystemMessage("HATA: İnfaz aksiyonu gönderilemedi!");
+                                        }
+
+                                        // Debug için network durumunu kontrol et
+                                        System.out.println("İnfaz aksiyonu gönderildi, bağlantı durumu: " +
+                                                (networkManager.isConnected() ? "Bağlı" : "Bağlı değil"));
+                                    } catch (Exception e) {
+                                        System.err.println("İnfaz aksiyonu gönderilirken hata: " + e.getMessage());
+                                        e.printStackTrace();
+                                        view.addSystemMessage("İnfaz aksiyonu gönderilirken hata oluştu!");
+                                    }
+                                });
+                                break;
+                        }
+                    }
+
+                    System.out.println(availableActions.size() + " aksiyon başarıyla eklendi");
+                } else {
+                    System.out.println("Kullanılabilir aksiyon yok, panel temizlendi");
+                }
+            } catch (Exception e) {
+                System.err.println("Aksiyonlar güncellenirken hata: " + e.getMessage());
+                e.printStackTrace();
             }
         });
     }
-
     public void forceUpdateActionPanel() {
         Platform.runLater(() -> {
             if (gameState.getPlayers().isEmpty()) {
@@ -374,17 +472,45 @@ public class GameController {
     }
 
     public void updateUI() {
-        Platform.runLater(() -> {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> updateUI());
+            return;
+        }
+
+        try {
+            System.out.println("Tam UI güncellemesi başlatılıyor...");
+
             updatePhaseDisplay();
             updateRoleDisplay();
             updatePlayerListDisplay();
             updateTimeDisplay();
-            updateActionControls();
-            updateChatControls();
 
-            // Oyuncu adını güncelle
-            view.updateUsername(gameState.getCurrentUsername());
-        });
+            // Gecikmeli aksiyonları yükleme
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            Platform.runLater(() -> {
+                                try {
+                                    updateActionControls();
+                                    updateChatControls();
+
+                                    // Oyuncu adını güncelle
+                                    view.updateUsername(gameState.getCurrentUsername());
+
+                                    System.out.println("Tam UI güncellemesi tamamlandı");
+                                } catch (Exception e) {
+                                    System.err.println("Gecikmeli UI güncellemesi sırasında hata: " + e.getMessage());
+                                    e.printStackTrace();
+                                }
+                            });
+                        }
+                    }, 100  // 100ms gecikme
+            );
+        } catch (Exception e) {
+            System.err.println("UI güncellemesi sırasında hata: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void updateRoleDisplay() {
@@ -406,38 +532,51 @@ public class GameController {
     }
 
     private void updateChatControls() {
-        // Gece/gündüz durumuna göre sohbet kontrollerini güncelle
-        GameState.Phase currentPhase = gameState.getCurrentPhase();
-        boolean isNight = gameState.getCurrentPhase() == GameState.Phase.NIGHT;
-
-        // Debug log
-        System.out.println("Chat kontrollerini güncelleme - Faz: " + currentPhase);
-
-        // Gece fazında genel sohbeti devre dışı bırak
-        if (isNight && GameConfig.DISABLE_CHAT_AT_NIGHT) {
-            view.getChatPanel().getMessageField().setDisable(true);
-            view.getChatPanel().getSendButton().setDisable(true);
-            System.out.println("Gece fazı - sohbet devre dışı"); // Debug log
-        } else {
-            view.getChatPanel().getMessageField().setDisable(false);
-            view.getChatPanel().getSendButton().setDisable(false);
-            System.out.println("Gündüz fazı - sohbet etkin"); // Debug log
+        // UI thread kontrolü
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> updateChatControls());
+            return;
         }
 
-        // Mafya sohbeti güncelleme
-        boolean isMafia = gameState.getCurrentRole().equals("Mafya");
-        view.getMafiaChatPanel().getMessageField().setDisable(!isMafia);
-        view.getMafiaChatPanel().getSendButton().setDisable(!isMafia);
+        try {
+            // Gece/gündüz durumuna göre sohbet kontrollerini güncelle
+            GameState.Phase currentPhase = gameState.getCurrentPhase();
+            boolean isNight = currentPhase == GameState.Phase.NIGHT;
+            String currentRole = gameState.getCurrentRole();
 
-        // Ölü oyuncu kontrolü
-        if (!gameState.isAlive() && !GameConfig.ALLOW_DEAD_CHAT) {
-            view.getChatPanel().getMessageField().setDisable(true);
-            view.getChatPanel().getSendButton().setDisable(true);
-            view.getMafiaChatPanel().getMessageField().setDisable(true);
-            view.getMafiaChatPanel().getSendButton().setDisable(true);
+            // Debug log
+            System.out.println("Chat kontrollerini güncelleme - Faz: " + currentPhase + ", Rol: " + currentRole);
+
+            // Gece fazında genel sohbeti devre dışı bırak
+            if (isNight && GameConfig.DISABLE_CHAT_AT_NIGHT) {
+                view.getChatPanel().getMessageField().setDisable(true);
+                view.getChatPanel().getSendButton().setDisable(true);
+                System.out.println("Gece fazı - genel sohbet devre dışı");
+            } else {
+                view.getChatPanel().getMessageField().setDisable(false);
+                view.getChatPanel().getSendButton().setDisable(false);
+                System.out.println("Gündüz fazı veya sohbet yasağı yok - genel sohbet etkin");
+            }
+
+            // Mafya sohbeti güncelleme
+            boolean isMafia = "Mafya".equals(currentRole);
+            view.getMafiaChatPanel().getMessageField().setDisable(!isMafia);
+            view.getMafiaChatPanel().getSendButton().setDisable(!isMafia);
+            System.out.println("Mafya sohbeti " + (isMafia ? "etkin" : "devre dışı"));
+
+            // Ölü oyuncu kontrolü
+            if (!gameState.isAlive() && !GameConfig.ALLOW_DEAD_CHAT) {
+                view.getChatPanel().getMessageField().setDisable(true);
+                view.getChatPanel().getSendButton().setDisable(true);
+                view.getMafiaChatPanel().getMessageField().setDisable(true);
+                view.getMafiaChatPanel().getSendButton().setDisable(true);
+                System.out.println("Ölü oyuncu - tüm sohbetler devre dışı");
+            }
+        } catch (Exception e) {
+            System.err.println("Sohbet kontrolleri güncellenirken hata: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
     /**
      * Sadece süre göstergesini günceller
      */
@@ -478,10 +617,18 @@ public class GameController {
                 return;
             }
 
-            // Mevcut role ve faza göre aksiyonları ayarla
-            setupActionHandlers();
+            // Mevcut role ve faza göre aksiyonları yeniden yükle
+            String availableAction = gameState.getAvailableAction();
+            System.out.println("Kullanılabilir aksiyonlar: " + availableAction);
 
-            System.out.println("Aksiyon paneli güncellendi, faz: " + gameState.getCurrentPhase());
+            if (availableAction != null && !availableAction.isEmpty()) {
+                String[] actions = availableAction.split(", ");
+                updateActions(List.of(actions));
+                System.out.println("Aksiyon paneli güncellendi, " + actions.length + " aksiyon yüklendi");
+            } else {
+                setupActionHandlers();
+                System.out.println("Aksiyon paneli güncellendi, temel handler'lar kuruldu");
+            }
         } catch (Exception e) {
             System.err.println("Aksiyon güncellemesi sırasında hata: " + e.getMessage());
             e.printStackTrace();

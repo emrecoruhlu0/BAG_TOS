@@ -293,12 +293,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Aksiyon mesajını işler
-     */
-    /**
-     * Aksiyon mesajını işler
-     */
     private void handleActionCommand(Message message) {
         try {
             ActionRequest actionRequest = JsonUtils.fromJson(
@@ -310,13 +304,20 @@ public class ClientHandler implements Runnable {
                 String actionTypeStr = actionRequest.getActionType();
                 String target = actionRequest.getTarget();
 
+                System.out.println("Aksiyon isteği alındı - Tür: " + actionTypeStr + ", Hedef: " + target + ", Oyuncu: " + username);
+
                 if (target == null || target.isEmpty()) {
-                    sendErrorMessage("INVALID_TARGET", "Geçersiz hedef!");
-                    return;
+                    if (actionTypeStr.equals(ActionType.EXECUTE.name())) {
+                        // EXECUTE aksiyonu için özel durum - hedef zaten bilindiğinden boş olabilir
+                        target = "prisoner"; // Daha sonra processJailorActions'da gerçek hedef alınacak
+                    } else {
+                        sendErrorMessage("INVALID_TARGET", "Geçersiz hedef!");
+                        return;
+                    }
                 }
 
-                // Hedef oyuncu hayatta mı kontrol et
-                if (!game.getAlivePlayers().contains(target)) {
+                // Hedef oyuncu hayatta mı kontrol et (EXECUTE için atla)
+                if (!actionTypeStr.equals(ActionType.EXECUTE.name()) && !game.getAlivePlayers().contains(target)) {
                     sendErrorMessage("INVALID_TARGET", "Hedef oyuncu hayatta değil!");
                     return;
                 }
@@ -347,6 +348,43 @@ public class ClientHandler implements Runnable {
                         }
                     }
 
+                    // İnfaz aksiyonu için
+                    if (actionType == ActionType.EXECUTE && game.getCurrentPhase() == GamePhase.NIGHT) {
+                        Role role = game.getRole(username);
+                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
+                            // Aksiyonu kaydet
+                            System.out.println("Jailor infaz aksiyonu alındı: " + username);
+
+                            // Burada target parametresi aslında kullanılmıyor, önemli olan infaz yapma niyeti
+                            String jailedTarget = game.getJailedPlayer();
+
+                            if (jailedTarget != null) {
+                                Map<ActionType, String> playerActions = game.getNightActions().computeIfAbsent(username, k -> new HashMap<>());
+                                playerActions.put(actionType, jailedTarget);
+
+                                // Başarılı işlem bildirimi
+                                ActionResultResponse resultResponse = new ActionResultResponse(
+                                        ActionType.EXECUTE.name(),
+                                        jailedTarget,
+                                        "SUCCESS",
+                                        "İnfaz işlemi kaydedildi. Gece sonunda etkili olacak."
+                                );
+
+                                Message resultMessage = new Message(MessageType.ACTION_RESULT);
+                                resultMessage.addData("actionResult", resultResponse);
+
+                                sendJsonMessage(resultMessage);
+
+                                System.out.println("İnfaz aksiyonu kaydedildi: " + username + " -> " + jailedTarget);
+                            } else {
+                                sendErrorMessage("NO_TARGET", "Hapsedilmiş bir oyuncu yok!");
+                            }
+                        } else {
+                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
+                        }
+                        return;
+                    }
+
                     if (actionType == ActionType.JAIL && game.getCurrentPhase() == GamePhase.DAY) {
                         Role role = game.getRole(username);
                         if (role != null && role.getRoleType() == RoleType.JAILOR) {
@@ -364,6 +402,8 @@ public class ClientHandler implements Runnable {
                             resultMessage.addData("actionResult", resultResponse);
 
                             sendJsonMessage(resultMessage);
+
+                            System.out.println("Hapsetme aksiyonu kaydedildi: " + username + " -> " + target);
                         } else {
                             sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
                         }
@@ -405,6 +445,8 @@ public class ClientHandler implements Runnable {
                             resultMessage.addData("actionResult", resultResponse);
 
                             sendJsonMessage(resultMessage);
+
+                            System.out.println("Gece aksiyonu kaydedildi: " + username + " -> " + actionType + " -> " + target);
                         } else {
                             sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
                         }
@@ -422,74 +464,29 @@ public class ClientHandler implements Runnable {
                             resultMessage.addData("actionResult", resultResponse);
 
                             sendJsonMessage(resultMessage);
+
+                            System.out.println("Oy aksiyonu kaydedildi: " + username + " -> " + target);
                         } else {
                             sendErrorMessage("INVALID_PHASE", "Bu aksiyonu şu anda gerçekleştiremezsiniz");
                         }
-                    }
-
-                    // BURAYA EKLEYİN: Jailor aksiyonları için olan kod
-                    // Jailor aksiyonları için
-                    if (actionType == ActionType.JAIL && game.getCurrentPhase() == GamePhase.DAY) {
-                        Role role = game.getRole(username);
-                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
-                            game.registerJailAction(username, target);
-
-                            // Başarılı işlem bildirimi
-                            ActionResultResponse resultResponse = new ActionResultResponse(
-                                    ActionType.JAIL.name(),
-                                    target,
-                                    "SUCCESS",
-                                    "Hapsetme işlemi kaydedildi. Gece fazında etkili olacak."
-                            );
-
-                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
-                            resultMessage.addData("actionResult", resultResponse);
-
-                            sendJsonMessage(resultMessage);
-                        } else {
-                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
-                        }
-                        return;
-                    }
-
-                    // İnfaz aksiyonu için
-                    if (actionType == ActionType.EXECUTE && game.getCurrentPhase() == GamePhase.NIGHT) {
-                        Role role = game.getRole(username);
-                        if (role != null && role.getRoleType() == RoleType.JAILOR) {
-                            // Aksiyonu kaydet
-                            Map<ActionType, String> playerActions = game.getNightActions().computeIfAbsent(username, k -> new HashMap<>());
-                            playerActions.put(actionType, target);
-
-                            // Başarılı işlem bildirimi
-                            ActionResultResponse resultResponse = new ActionResultResponse(
-                                    ActionType.EXECUTE.name(),
-                                    target,
-                                    "SUCCESS",
-                                    "İnfaz işlemi kaydedildi. Gece sonunda etkili olacak."
-                            );
-
-                            Message resultMessage = new Message(MessageType.ACTION_RESULT);
-                            resultMessage.addData("actionResult", resultResponse);
-
-                            sendJsonMessage(resultMessage);
-                        } else {
-                            sendErrorMessage("UNAUTHORIZED", "Bu aksiyonu gerçekleştirme yetkiniz yok");
-                        }
-                        return;
+                    } else {
+                        sendErrorMessage("INVALID_PHASE", "Mevcut fazda aksiyon gerçekleştiremezsiniz: " + game.getCurrentPhase());
                     }
 
                 } catch (IllegalArgumentException e) {
                     sendErrorMessage("INVALID_ACTION_TYPE", "Geçersiz aksiyon tipi: " + actionTypeStr);
+                    System.err.println("Geçersiz aksiyon tipi: " + actionTypeStr + " - " + e.getMessage());
                 }
+            } else {
+                sendErrorMessage("INVALID_REQUEST", "Geçersiz aksiyon isteği");
             }
         } catch (Exception e) {
             System.err.println("Aksiyon komutu işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
             sendErrorMessage("PROCESSING_ERROR", "Aksiyon komutu işlenirken hata oluştu");
         }
     }
-    /**
-     * Oylama mesajını işler
-     */
+
     private void handleVoteCommand(Message message) {
         try {
             VoteRequest voteRequest = JsonUtils.fromJson(
@@ -542,9 +539,32 @@ public class ClientHandler implements Runnable {
                 String chatMessage = chatRequest.getMessage();
                 String room = chatRequest.getRoom();
 
+                System.out.println("Sohbet isteği alındı - Oda: " + room + ", Gönderen: " + username);
+
                 // Ölü oyuncular için sohbet kontrolü
                 if (!isAlive && !GameConfig.ALLOW_DEAD_CHAT) {
                     sendErrorMessage("FORBIDDEN", "Ölü oyuncular sohbet edemez!");
+                    return;
+                }
+
+                // "JAIL" tipinde mesajları özel olarak işle
+                if ("JAIL".equals(room)) {
+                    System.out.println("Hapishane mesajı algılandı");
+                    // Oyuncunun hapishane odasında olup olmadığını kontrol et
+
+                    // Gardiyan mı yoksa hapsedilen kişi mi?
+                    boolean isJailor = game.getJailorPlayer() != null && game.getJailorPlayer().equals(username);
+                    boolean isJailed = game.getJailedPlayer() != null && game.getJailedPlayer().equals(username);
+
+                    if (isJailor || isJailed) {
+                        // Hapishane mesajlarını özel olarak işle
+                        String jailRoomName = "JAIL_" + game.getJailorPlayer();
+
+                        System.out.println("Hapishane mesajı gönderiliyor - Oda: " + jailRoomName);
+                        roomHandler.sendJailChatMessage(game.getJailorPlayer(), username, chatMessage);
+                    } else {
+                        sendErrorMessage("FORBIDDEN", "Hapishane odasında değilsiniz!");
+                    }
                     return;
                 }
 
@@ -567,10 +587,10 @@ public class ClientHandler implements Runnable {
             }
         } catch (Exception e) {
             System.err.println("Sohbet komutu işlenirken hata: " + e.getMessage());
+            e.printStackTrace();
             sendErrorMessage("PROCESSING_ERROR", "Sohbet komutu işlenirken hata oluştu");
         }
     }
-
     /**
      * Kaynakları temizler ve bağlantıyı kapatır
      */

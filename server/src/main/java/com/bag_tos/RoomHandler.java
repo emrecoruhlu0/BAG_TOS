@@ -83,21 +83,75 @@ public class RoomHandler {
 
     public void createJailRoom(String jailor, String prisoner) {
         String jailRoom = "JAIL_" + jailor;
+        System.out.println("Hapishane odası oluşturuluyor: " + jailRoom + " (Gardiyan: " + jailor + ", Hapsedilen: " + prisoner + ")");
 
         // Oda yoksa oluştur
-        createRoom(jailRoom);
+        if (!rooms.containsKey(jailRoom)) {
+            createRoom(jailRoom);
+            System.out.println("Yeni hapishane odası oluşturuldu: " + jailRoom);
+        } else {
+            System.out.println("Hapishane odası zaten mevcut: " + jailRoom);
+        }
 
         // Oyuncuları odaya ekle
-        players.stream()
-                .filter(p -> p.getUsername().equals(jailor) || p.getUsername().equals(prisoner))
-                .forEach(p -> addToRoom(jailRoom, p));
+        boolean jailorAdded = false;
+        boolean prisonerAdded = false;
+
+        for (ClientHandler p : players) {
+            String playerName = p.getUsername();
+            if (playerName.equals(jailor)) {
+                addToRoom(jailRoom, p);
+                jailorAdded = true;
+                System.out.println("Gardiyan odaya eklendi: " + jailor);
+            } else if (playerName.equals(prisoner)) {
+                addToRoom(jailRoom, p);
+                prisonerAdded = true;
+                System.out.println("Hapsedilen odaya eklendi: " + prisoner);
+            }
+        }
+
+        if (!jailorAdded) {
+            System.out.println("UYARI: Gardiyan bulunamadı: " + jailor);
+        }
+
+        if (!prisonerAdded) {
+            System.out.println("UYARI: Hapsedilen bulunamadı: " + prisoner);
+        }
 
         // Hapishane başlangıç mesajı
         Message jailStartMessage = new Message(MessageType.GAME_STATE);
         jailStartMessage.addData("event", "JAIL_START");
         jailStartMessage.addData("message", "Gardiyan hücresine hoş geldiniz!");
 
+        // Jailor için ek flag ekleyelim
+        jailStartMessage.addData("jailor", jailor);
+        jailStartMessage.addData("prisoner", prisoner);
+
         broadcastToRoom(jailRoom, jailStartMessage);
+        System.out.println("Hapishane başlangıç mesajı gönderildi.");
+
+        // Her iki oyuncuya bireysel olarak hangi rolde olduklarını bildir
+        players.stream()
+                .filter(p -> p.getUsername().equals(jailor))
+                .findFirst()
+                .ifPresent(p -> {
+                    Message jailorMessage = new Message(MessageType.GAME_STATE);
+                    jailorMessage.addData("event", "JAILOR_ACTIVE");
+                    jailorMessage.addData("prisoner", prisoner);
+                    jailorMessage.addData("message", prisoner + " adlı oyuncuyu hapsettiniz. Gece fazında infaz etmek isterseniz 'İnfaz Et' butonunu kullanabilirsiniz.");
+                    p.sendJsonMessage(jailorMessage);
+                });
+
+        players.stream()
+                .filter(p -> p.getUsername().equals(prisoner))
+                .findFirst()
+                .ifPresent(p -> {
+                    Message prisonerMessage = new Message(MessageType.GAME_STATE);
+                    prisonerMessage.addData("event", "PLAYER_JAILED");
+                    prisonerMessage.addData("jailor", jailor);
+                    prisonerMessage.addData("message", "Bu gece Gardiyan tarafından hapsedildiniz!");
+                    p.sendJsonMessage(prisonerMessage);
+                });
     }
 
     public void closeJailRoom(String jailor) {
@@ -119,12 +173,13 @@ public class RoomHandler {
 
     public void sendJailChatMessage(String jailor, String sender, String message) {
         String jailRoom = "JAIL_" + jailor;
+        System.out.println("Hapishane mesajı gönderiliyor - Oda: " + jailRoom + ", Gönderen: " + sender);
 
         // Sohbet mesajı oluştur
         ChatMessageResponse chatResponse = new ChatMessageResponse(
                 sender,
                 message,
-                "JAIL"
+                "JAIL"  // JAIL tipinde mesaj olduğunu belirt
         );
 
         // Sohbet mesajını paketle
@@ -132,6 +187,9 @@ public class RoomHandler {
         chatMessage.addData("chatMessage", chatResponse);
 
         // Hapishane odasındaki tüm oyunculara gönder
+        List<ClientHandler> playersInRoom = getClientsInRoom(jailRoom);
+        System.out.println("Hapishane mesajı " + playersInRoom.size() + " oyuncuya gönderiliyor");
+
         broadcastToRoom(jailRoom, chatMessage);
     }
 

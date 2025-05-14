@@ -153,13 +153,20 @@ public class ActionPanel extends VBox {
         Button executeButton = new Button("İnfaz Et");
         executeButton.getStyleClass().add("danger-button");
         executeButton.setOnAction(e -> {
-            // Hapsedilen kişi zaten belirli olduğu için doğrudan işle
-            Player dummyPlayer = new Player("Hapsedilen");
-            handler.onAction(dummyPlayer);
+            try {
+                System.out.println("İnfaz butonu tıklandı");
+                // Dummy player kullanmak yerine null geç, handler içinde değeri bağla
+                handler.onAction(null);
+            } catch (Exception ex) {
+                System.err.println("İnfaz butonu işlenirken hata: " + ex.getMessage());
+                ex.printStackTrace();
+            }
         });
 
         executeActionBox.getChildren().addAll(actionLabel, executeButton);
         getChildren().add(executeActionBox);
+
+        System.out.println("İnfaz butonu eklendi");
     }
 
     public void addKillAction(ActionHandler handler) {

@@ -136,9 +136,17 @@ public class GameView extends BorderPane {
 
     // Hapishane sohbetini göstermek/gizlemek için yeni metotlar
     public void showJailChat() {
-            jailChatTab.setDisable(false);
-            chatTabPane.getSelectionModel().select(jailChatTab);
-            jailChatPanel.addMessage("Sistem: Hapishane sohbet odası açıldı.");
+        Platform.runLater(() -> {
+            try {
+                jailChatTab.setDisable(false);
+                // Tab'ı doğrudan seç
+                chatTabPane.getSelectionModel().select(jailChatTab);
+                System.out.println("Hapishane sohbet tab'ı aktifleştirildi ve seçildi");
+            } catch (Exception e) {
+                System.err.println("Hapishane tab'ı gösterilirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 
     public void hideJailChat() {
