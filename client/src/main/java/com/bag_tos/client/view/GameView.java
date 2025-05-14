@@ -113,8 +113,8 @@ public class GameView extends BorderPane {
         mafiaChatPanel = new ChatPanel("Mafya mesajınızı yazın...");
         mafiaChatTab.setContent(mafiaChatPanel);
 
-        // Hapishane sohbeti sekmesi
-        jailChatTab = new Tab("Hapishane");
+        // Hapishane sohbeti sekmesi - isim değiştirildi
+        jailChatTab = new Tab("Hapishane Hücresi"); // "Hapishane" yerine "Hapishane Hücresi"
         jailChatTab.setClosable(false);
         jailChatPanel = new ChatPanel("Mesajınızı yazın...");
         jailChatTab.setContent(jailChatPanel);
@@ -259,5 +259,18 @@ public class GameView extends BorderPane {
 
     public TextArea getSystemMessagesArea() {
         return systemMessagesArea;
+    }
+
+    public void ensureJailChatVisible() {
+        Platform.runLater(() -> {
+            try {
+                jailChatTab.setDisable(false);
+                // Tab'ı seçmiyoruz, sadece görünür yapıyoruz
+                System.out.println("Hapishane sohbet tab'ı aktifleştirildi");
+            } catch (Exception e) {
+                System.err.println("Hapishane tab'ı gösterilirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 }

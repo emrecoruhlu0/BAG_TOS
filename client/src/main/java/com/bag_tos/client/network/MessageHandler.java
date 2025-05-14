@@ -7,6 +7,7 @@ import com.bag_tos.client.model.Player;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.response.*;
+import com.bag_tos.common.model.ActionType;
 import com.bag_tos.common.model.PlayerInfo;
 import com.bag_tos.common.util.JsonUtils;
 import javafx.application.Platform;
@@ -370,8 +371,36 @@ public class MessageHandler implements NetworkManager.MessageListener {
             Boolean phaseChangeMessage = (Boolean) message.getDataValue("phaseChangeMessage");
             boolean isSpecificPhaseChangeMsg = phaseChangeMessage != null && phaseChangeMessage;
 
+            // Faz değişimlerinde hapis durumunu kontrol et
+            GameState.Phase newGamePhase;
+            switch (newPhase) {
+                case "NIGHT":
+                    newGamePhase = GameState.Phase.NIGHT;
+                    break;
+                case "DAY":
+                    newGamePhase = GameState.Phase.DAY;
+                    // Gündüz başladıysa, hapis flag'ini temizle - hapsedilme durumu sadece bir gece için geçerli
+                    Boolean wasJailed = (Boolean) gameState.getData("isJailed");
+                    if (wasJailed != null && wasJailed) {
+                        System.out.println("Gündüz fazı başladı, hapis durumu sıfırlanıyor");
+                        gameState.setData("isJailed", false);
+                    }
+                    break;
+                default:
+                    newGamePhase = GameState.Phase.LOBBY;
+            }
+
             // YENİ - Merkezi metodu çağır (zorla güncelleme ile)
             updateGamePhase(newPhase, true);
+
+            // Sistem mesajı ekle
+            String phaseMessage = (String) message.getDataValue("message");
+            if (phaseMessage != null) {
+                gameState.addSystemMessage(phaseMessage);
+                if (gameController != null) {
+                    gameController.handleSystemMessage(phaseMessage);
+                }
+            }
 
             // Oyuncu listesini güncelle
             if (message.getDataValue("players") != null) {
@@ -391,13 +420,11 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 System.out.println("Faz değişiminde süre güncellendi: " + time);
             }
 
-            // Sistem mesajı ekle
-            String phaseMessage = (String) message.getDataValue("message");
-            if (phaseMessage != null) {
-                gameState.addSystemMessage(phaseMessage);
-                if (gameController != null) {
-                    gameController.handleSystemMessage(phaseMessage);
-                }
+            // Hapsedilen oyuncu kontrolü
+            String jailedPlayer = (String) message.getDataValue("jailedPlayer");
+            if (jailedPlayer != null && jailedPlayer.equals(gameState.getCurrentUsername())) {
+                gameState.setData("isJailed", true);
+                System.out.println("Oyuncu hapsedildi: " + jailedPlayer);
             }
 
             // UI'ı tam olarak güncelle (önemli)
@@ -407,6 +434,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
+
     private void handleGameEvent(String event, Message message) {
         switch (event) {
             case "PLAYER_KILLED":
@@ -427,13 +455,35 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 gameState.addSystemMessage("Bugün kimse asılmadı.");
                 break;
             case "JAIL_START":
-            case "JAIL_END":
-            case "PLAYER_JAILED":
             case "JAILOR_ACTIVE":
+                if (gameController != null) {
+                    gameController.handleJailEvent(event, message);
+                }
+                break;
             case "JAILOR_EXECUTION":
                 if (gameController != null) {
                     gameController.handleJailEvent(event, message);
                 }
+                break;
+            case "PLAYER_JAILED":
+                // Oyuncu hapsedildi
+                if (gameState.getCurrentUsername().equals(message.getDataValue("target"))) {
+                    // Bu oyuncu hapsedildi, aksiyon durumunu güncelle
+                    gameState.setData("isJailed", true);
+                    gameState.addSystemMessage("Hapsedildiniz! Gardiyan tarafından sorgulanacaksınız.");
+                    System.out.println("Oyuncu hapsedildi, isJailed = true olarak ayarlandı");
+
+                    // Aksiyon panelini temizle
+                    if (gameController != null) {
+                        gameController.updateActionsOnly();
+                    }
+                }
+                break;
+
+            case "JAIL_END":
+                // Hapishane sona erdi, flag'i temizle
+                gameState.setData("isJailed", false);
+                System.out.println("Hapishane sona erdi, isJailed = false olarak ayarlandı");
                 break;
             // Diğer olaylar için ek işleme mantığı eklenebilir
         }
@@ -560,30 +610,61 @@ public class MessageHandler implements NetworkManager.MessageListener {
             if (message.getDataValue("actionResult") != null) {
                 String jsonStr = JsonUtils.toJson(message.getDataValue("actionResult"));
                 ActionResultResponse response = JsonUtils.fromJson(jsonStr, ActionResultResponse.class);
-                List<String> actions = (List<String>) message.getDataValue("availableActions");
-                if (actions != null && !actions.isEmpty()) {
-                    if (gameController != null) {
-                        // Aksiyonları güncellemeden önce kısa bir gecikme ekleyelim
-                        new java.util.Timer().schedule(
-                                new java.util.TimerTask() {
-                                    @Override
-                                    public void run() {
-                                        Platform.runLater(() -> {
-                                            // GameState'deki oyuncu listesini kontrol et
-                                            if (gameState.getPlayers().isEmpty()) {
-                                                System.out.println("UYARI: Oyuncu listesi boş, aksiyonlar güncellenemez!");
-                                                return;
-                                            }
 
-                                            // Artık liste dolu, aksiyonları güncelle
-                                            gameController.updateActions(actions);
-                                            System.out.println("Aksiyonlar gecikmeyle güncellendi, oyuncu sayısı: "
-                                                    + gameState.getPlayers().size());
-                                        });
-                                    }
-                                },
-                                500  // 500 ms gecikme
-                        );
+                if (response != null) {
+                    // Aksiyon sonucunu sistem mesajına ekle
+                    String actionType = response.getAction();
+                    String target = response.getTarget();
+                    String result = response.getResult();
+                    String resultMessage = response.getMessage();
+
+                    // Özellikle INVESTIGATE aksiyonu için özel mesaj
+                    if (ActionType.INVESTIGATE.name().equals(actionType)) {
+                        String formattedMessage = String.format("Araştırma Sonucu - %s: %s",
+                                target, resultMessage);
+
+                        // Sistem mesajına ekle
+                        gameState.addSystemMessage(formattedMessage);
+
+                        // GameController'a ilet
+                        if (gameController != null) {
+                            gameController.handleSystemMessage(formattedMessage);
+                        }
+
+                        System.out.println("Şerif araştırma sonucu eklendi: " + formattedMessage);
+                    }
+                    // Diğer aksiyon türleri için genel işlem
+                    else if (resultMessage != null && !resultMessage.isEmpty()) {
+                        // Sistem mesajına ekle
+                        gameState.addSystemMessage(resultMessage);
+
+                        // GameController'a ilet
+                        if (gameController != null) {
+                            gameController.handleSystemMessage(resultMessage);
+                        }
+                    }
+
+                    // Aksiyonları güncelle
+                    List<String> actions = (List<String>) message.getDataValue("availableActions");
+                    if (actions != null && !actions.isEmpty()) {
+                        if (gameController != null) {
+                            // Gecikmeli aksiyon güncellemesi
+                            new java.util.Timer().schedule(
+                                    new java.util.TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            Platform.runLater(() -> {
+                                                try {
+                                                    gameController.updateActions(actions);
+                                                } catch (Exception e) {
+                                                    System.err.println("Aksiyon güncellemesi sırasında hata: " + e.getMessage());
+                                                    e.printStackTrace();
+                                                }
+                                            });
+                                        }
+                                    }, 500  // 500ms gecikme
+                            );
+                        }
                     }
                 }
             }
@@ -592,7 +673,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
-
     private void handleChatMessage(Message message) {
         try {
             if (message.getDataValue("chatMessage") != null) {
@@ -615,16 +695,16 @@ public class MessageHandler implements NetworkManager.MessageListener {
                             gameController.handleMafiaMessage(chatMessage);
                         }
                     } else if ("JAIL".equals(room)) {
-                        // Hapishane mesajı - BU KISIMDAKI SORUN DÜZELTİLDİ
-                        System.out.println("Hapishane mesajı işleniyor: " + chatMessage);
+                        // Hapishane mesajı
                         gameState.addSystemMessage("Hapishane: " + chatMessage);
 
                         if (gameController != null) {
                             Platform.runLater(() -> {
                                 try {
                                     gameController.getView().addJailMessage(chatMessage);
-                                    // Hapishane tab'ına geç ve tab'ı seç
-                                    gameController.getView().showJailChat();
+
+                                    // Tab'ı görünür yap ama otomatik seçme (istemci seçsin)
+                                    gameController.getView().ensureJailChatVisible();
                                 } catch (Exception e) {
                                     System.err.println("Hapishane mesajı eklenirken hata: " + e.getMessage());
                                     e.printStackTrace();
@@ -647,6 +727,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
+
     private void handleErrorMessage(Message message) {
         try {
             String code = (String) message.getDataValue("code");

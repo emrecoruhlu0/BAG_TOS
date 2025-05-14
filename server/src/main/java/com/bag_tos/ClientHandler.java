@@ -550,9 +550,8 @@ public class ClientHandler implements Runnable {
                 // "JAIL" tipinde mesajları özel olarak işle
                 if ("JAIL".equals(room)) {
                     System.out.println("Hapishane mesajı algılandı");
-                    // Oyuncunun hapishane odasında olup olmadığını kontrol et
 
-                    // Gardiyan mı yoksa hapsedilen kişi mi?
+                    // Oyuncunun hapishane odasında olup olmadığını kontrol et
                     boolean isJailor = game.getJailorPlayer() != null && game.getJailorPlayer().equals(username);
                     boolean isJailed = game.getJailedPlayer() != null && game.getJailedPlayer().equals(username);
 

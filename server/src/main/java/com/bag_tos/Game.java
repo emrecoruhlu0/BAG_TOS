@@ -325,6 +325,12 @@ public class Game {
         // Kesin zaman bilgisi ekle
         phaseChangeMessage.addData("remainingTime", remainingSeconds);
 
+        // Hapsedilen oyuncu bilgisini ekle
+        if (newPhase == GamePhase.NIGHT && jailedPlayer != null) {
+            phaseChangeMessage.addData("jailedPlayer", jailedPlayer);
+        }
+
+
         // Diğer oyun durumu bilgilerini ekle
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
@@ -440,6 +446,27 @@ public class Game {
                 continue;
             }
 
+            // Jester'ın gece aksiyonu yoktur
+            if (role.getRoleType() == RoleType.JESTER &&
+                    currentPhase == GamePhase.NIGHT) {
+                // Jester için aksiyon yok, boş liste gönder ve mesaj ekle
+                Message infoMessage = new Message(MessageType.GAME_STATE);
+                infoMessage.addData("message", "Jester olarak gece aksiyonunuz bulunmuyor.");
+                player.sendJsonMessage(infoMessage);
+                continue;
+            }
+
+            // Jailor rolü kontrolü - eğer jailor gündüz kimseyi seçmediyse
+            if (role.getRoleType() == RoleType.JAILOR &&
+                    currentPhase == GamePhase.NIGHT &&
+                    (jailorPlayer == null || !jailorPlayer.equals(username) || jailedPlayer == null)) {
+                // Jailor için aksiyon yok, boş liste gönder ve mesaj ekle
+                Message infoMessage = new Message(MessageType.GAME_STATE);
+                infoMessage.addData("message", "Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
+                player.sendJsonMessage(infoMessage);
+                continue;
+            }
+
             // Kullanılabilir aksiyonlar mesajı
             Message actionMessage = new Message(MessageType.AVAILABLE_ACTIONS);
             List<String> availableActions = new ArrayList<>();
@@ -473,13 +500,10 @@ public class Game {
             // Mevcut aksiyonları ekle
             actionMessage.addData("availableActions", availableActions);
 
-            // ... hedef listesi kodu ...
-
             // Oyuncuya gönder
             player.sendJsonMessage(actionMessage);
         }
     }
-
     private void startCountdown() {
         System.out.println("startCountdown çağrıldı, kalan süre: " + remainingSeconds + " saniye, faz: " + currentPhase);
 
@@ -636,6 +660,23 @@ public class Game {
         }
 
         try {
+            // Hapsedilen oyuncu kontrolü - aksiyonları temizle
+            if (jailedPlayer != null) {
+                // Hapsedilen oyuncunun bütün aksiyonlarını temizle
+                System.out.println("Hapsedilen oyuncunun aksiyonları temizleniyor: " + jailedPlayer);
+                nightActions.remove(jailedPlayer);
+
+                // Hapsedilen oyuncuya bildirim gönder
+                Message jailNoticeMessage = new Message(MessageType.GAME_STATE);
+                jailNoticeMessage.addData("event", "PLAYER_JAILED");
+                jailNoticeMessage.addData("message", "Hapsedildiniz, bu gece aksiyon gerçekleştiremezsiniz.");
+
+                players.stream()
+                        .filter(p -> p.getUsername().equals(jailedPlayer))
+                        .findFirst()
+                        .ifPresent(p -> p.sendJsonMessage(jailNoticeMessage));
+            }
+
             Map<ActionType, Map<String, String>> actionTargets = collectActionTargets();
 
             // Önce gardiyan aksiyonlarını işle

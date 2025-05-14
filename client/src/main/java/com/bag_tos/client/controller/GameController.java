@@ -98,19 +98,28 @@ public class GameController {
         switch (event) {
             case "JAIL_START":
                 view.showJailChat();
-                view.addSystemMessage("Hapishane sohbet odası açıldı.");
+                // Rolüne göre farklı mesaj göster
+                Boolean isJailor = (Boolean) message.getDataValue("isJailor");
+                if (isJailor != null && isJailor) {
+                    view.addSystemMessage("Hapishane açıldı. Mahkum ile konuşabilirsiniz.");
+                } else {
+                    view.addSystemMessage("Hapishane hücresine hapsedildiniz.");
+                }
                 break;
 
             case "JAIL_END":
                 view.hideJailChat();
-                view.addSystemMessage("Hapishane sohbet odası kapatıldı.");
+                view.addSystemMessage("Hapishane hücresi kapatıldı.");
                 break;
 
             case "PLAYER_JAILED":
                 String jailedPlayer = (String) message.getDataValue("target");
+                Boolean isPrisoner = (Boolean) message.getDataValue("isPrisoner");
+
                 if (jailedPlayer != null && jailedPlayer.equals(gameState.getCurrentUsername())) {
                     view.showJailChat();
-                    view.addSystemMessage("Bu gece hapsedildiniz!");
+                    gameState.setData("isJailed", true);
+                    view.addSystemMessage("Bu gece hapsedildiniz! Gardiyan ile konuşabilirsiniz.");
                 }
                 break;
 
@@ -179,6 +188,21 @@ public class GameController {
         // Geçerli oyuncu bilgileri
         String currentUsername = gameState.getCurrentUsername();
         String currentRole = gameState.getCurrentRole();
+
+        // Hapse alınan kişi kontrolü - YENİ KOD
+        Boolean isJailed = (Boolean) gameState.getData("isJailed");
+        if (isJailed != null && isJailed) {
+            System.out.println("Oyuncu hapsedilmiş, aksiyon paneli boş bırakılıyor");
+            view.addSystemMessage("Hapsedildiniz, herhangi bir aksiyon gerçekleştiremezsiniz.");
+            return;
+        }
+
+        // Jester kontrolü - gece aksiyonu yok
+        if (currentRole.equals("Jester") && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+            System.out.println("Jester rolü, gece aksiyonu yok");
+            view.addSystemMessage("Jester olarak gece aksiyonunuz bulunmuyor.");
+            return;
+        }
 
         // Rol ve faza uygun oyuncuları aksiyon paneline ekle
         if (currentRole != null && currentRole.equals("Doktor")) {
@@ -310,6 +334,32 @@ public class GameController {
                 String currentRole = gameState.getCurrentRole();
 
                 System.out.println("Aksiyon güncelleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
+
+                // Hapse alınan kişi kontrolü
+                Boolean isJailed = (Boolean) gameState.getData("isJailed");
+                if (isJailed != null && isJailed && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+                    System.out.println("Oyuncu hapsedilmiş, aksiyon paneli boş bırakılıyor");
+
+                    // İsterseniz hapis mesajı gösterebilirsiniz
+                    view.addSystemMessage("Hapsedildiniz, herhangi bir aksiyon gerçekleştiremezsiniz.");
+                    return;
+                }
+
+                // Jester kontrolü - gece aksiyonu yok
+                if (currentRole.equals("Jester") && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+                    System.out.println("Jester rolü, gece aksiyonu yok");
+                    view.addSystemMessage("Jester olarak gece aksiyonunuz bulunmuyor.");
+                    return;
+                }
+
+                // Eğer Jailor ise ve mevcut listede EXECUTE aksiyonu yoksa
+                if (currentRole.equals("Gardiyan") &&
+                        gameState.getCurrentPhase() == GameState.Phase.NIGHT &&
+                        (availableActions == null || !availableActions.contains("EXECUTE"))) {
+                    System.out.println("Gardiyan gündüz kimseyi hapsetmemiş, aksiyon paneli boş bırakılıyor");
+                    view.addSystemMessage("Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
+                    return;
+                }
 
                 // Oyuncu listesi kontrolü
                 if (gameState.getPlayers().isEmpty()) {

@@ -74,15 +74,12 @@ public class RoomHandler {
         game.start();
     }
 
-    /**
-     * Yeni bir oda oluşturur
-     */
     public void createRoom(String roomName) {
         rooms.put(roomName, new ArrayList<>());
     }
 
     public void createJailRoom(String jailor, String prisoner) {
-        String jailRoom = "JAIL_" + jailor;
+        String jailRoom = "JAIL_" + jailor; // Bu değişken adı sunucu tarafında kalır, istemciye gönderilmez
         System.out.println("Hapishane odası oluşturuluyor: " + jailRoom + " (Gardiyan: " + jailor + ", Hapsedilen: " + prisoner + ")");
 
         // Oda yoksa oluştur
@@ -118,19 +115,12 @@ public class RoomHandler {
             System.out.println("UYARI: Hapsedilen bulunamadı: " + prisoner);
         }
 
-        // Hapishane başlangıç mesajı
+        // Hapishane başlangıç mesajı - Jailor bilgisini gizleyerek
         Message jailStartMessage = new Message(MessageType.GAME_STATE);
         jailStartMessage.addData("event", "JAIL_START");
-        jailStartMessage.addData("message", "Gardiyan hücresine hoş geldiniz!");
+        jailStartMessage.addData("message", "Hapishane hücresine hoş geldiniz!");
 
-        // Jailor için ek flag ekleyelim
-        jailStartMessage.addData("jailor", jailor);
-        jailStartMessage.addData("prisoner", prisoner);
-
-        broadcastToRoom(jailRoom, jailStartMessage);
-        System.out.println("Hapishane başlangıç mesajı gönderildi.");
-
-        // Her iki oyuncuya bireysel olarak hangi rolde olduklarını bildir
+        // Gardiyan için özel bilgi
         players.stream()
                 .filter(p -> p.getUsername().equals(jailor))
                 .findFirst()
@@ -139,21 +129,26 @@ public class RoomHandler {
                     jailorMessage.addData("event", "JAILOR_ACTIVE");
                     jailorMessage.addData("prisoner", prisoner);
                     jailorMessage.addData("message", prisoner + " adlı oyuncuyu hapsettiniz. Gece fazında infaz etmek isterseniz 'İnfaz Et' butonunu kullanabilirsiniz.");
+                    jailorMessage.addData("isJailor", true); // Bu flag Gardiyan olduğunu belirtir
                     p.sendJsonMessage(jailorMessage);
                 });
 
+        // Hapsedilen için özel bilgi - Jailor ismini vermeden
         players.stream()
                 .filter(p -> p.getUsername().equals(prisoner))
                 .findFirst()
                 .ifPresent(p -> {
                     Message prisonerMessage = new Message(MessageType.GAME_STATE);
                     prisonerMessage.addData("event", "PLAYER_JAILED");
-                    prisonerMessage.addData("jailor", jailor);
+                    prisonerMessage.addData("target", prisoner);
                     prisonerMessage.addData("message", "Bu gece Gardiyan tarafından hapsedildiniz!");
+                    prisonerMessage.addData("isPrisoner", true); // Bu flag hapsedilmiş olduğunu belirtir
                     p.sendJsonMessage(prisonerMessage);
                 });
-    }
 
+        // Sadece hapishane odasına bildirim
+        broadcastToRoom(jailRoom, jailStartMessage);
+    }
     public void closeJailRoom(String jailor) {
         String jailRoom = "JAIL_" + jailor;
 
@@ -173,11 +168,13 @@ public class RoomHandler {
 
     public void sendJailChatMessage(String jailor, String sender, String message) {
         String jailRoom = "JAIL_" + jailor;
+        boolean isJailor = sender.equals(jailor);
+
         System.out.println("Hapishane mesajı gönderiliyor - Oda: " + jailRoom + ", Gönderen: " + sender);
 
-        // Sohbet mesajı oluştur
+        // Sohbet mesajı oluştur, gönderen kişinin jailor olup olmadığına göre ismi değiştir
         ChatMessageResponse chatResponse = new ChatMessageResponse(
-                sender,
+                isJailor ? "Gardiyan" : sender, // Jailor için sabit "Gardiyan" adını kullan
                 message,
                 "JAIL"  // JAIL tipinde mesaj olduğunu belirt
         );

@@ -9,7 +9,6 @@
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/MessageHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/ActionPanel.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Game.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/RoomHandler.java" afterDir="false" />
