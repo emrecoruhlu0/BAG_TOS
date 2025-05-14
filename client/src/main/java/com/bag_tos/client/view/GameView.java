@@ -5,6 +5,7 @@ import com.bag_tos.client.model.Player;
 import com.bag_tos.client.view.components.ActionPanel;
 import com.bag_tos.client.view.components.ChatPanel;
 import com.bag_tos.client.view.components.PlayerListView;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -112,6 +113,7 @@ public class GameView extends BorderPane {
         mafiaChatPanel = new ChatPanel("Mafya mesajınızı yazın...");
         mafiaChatTab.setContent(mafiaChatPanel);
 
+        // Hapishane sohbeti sekmesi
         jailChatTab = new Tab("Hapishane");
         jailChatTab.setClosable(false);
         jailChatPanel = new ChatPanel("Mesajınızı yazın...");
@@ -125,9 +127,10 @@ public class GameView extends BorderPane {
         systemMessagesArea.setWrapText(true);
         systemMessagesTab.setContent(systemMessagesArea);
 
+        // Başlangıçta hapishane sekmesini gizle
         jailChatTab.setDisable(true);
 
-        tabPane.getTabs().addAll(generalChatTab, mafiaChatTab, systemMessagesTab);
+        tabPane.getTabs().addAll(generalChatTab, mafiaChatTab, systemMessagesTab, jailChatTab);
         return tabPane;
     }
 
@@ -155,26 +158,28 @@ public class GameView extends BorderPane {
     public void updatePhase(GameState.Phase phase) {
         System.out.println("View Faz Güncellemesi: " + phase); // Debug log
 
-        switch (phase) {
-            case DAY:
-                phaseText.setText("FAZ: GÜNDÜZ");
-                phaseText.setFill(Color.ORANGE);
-                // Ana panelde stil değişikliği
-                this.getStyleClass().remove("night-phase");
-                this.getStyleClass().add("day-phase");
-                break;
-            case NIGHT:
-                phaseText.setText("FAZ: GECE");
-                phaseText.setFill(Color.BLUE);
-                this.getStyleClass().remove("day-phase");
-                this.getStyleClass().add("night-phase");
-                break;
-            default:
-                phaseText.setText("FAZ: LOBI");
-                phaseText.setFill(Color.BLACK);
-                this.getStyleClass().remove("day-phase");
-                this.getStyleClass().remove("night-phase");
-        }
+        Platform.runLater(() -> {
+            switch (phase) {
+                case DAY:
+                    phaseText.setText("FAZ: GÜNDÜZ");
+                    phaseText.setFill(Color.ORANGE);
+                    // Ana panelde stil değişikliği
+                    this.getStyleClass().remove("night-phase");
+                    this.getStyleClass().add("day-phase");
+                    break;
+                case NIGHT:
+                    phaseText.setText("FAZ: GECE");
+                    phaseText.setFill(Color.BLUE);
+                    this.getStyleClass().remove("day-phase");
+                    this.getStyleClass().add("night-phase");
+                    break;
+                default:
+                    phaseText.setText("FAZ: LOBI");
+                    phaseText.setFill(Color.BLACK);
+                    this.getStyleClass().remove("day-phase");
+                    this.getStyleClass().remove("night-phase");
+            }
+        });
     }
 
     public void updateUsername(String username) {

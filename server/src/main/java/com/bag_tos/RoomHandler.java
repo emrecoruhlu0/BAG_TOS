@@ -117,6 +117,24 @@ public class RoomHandler {
         }
     }
 
+    public void sendJailChatMessage(String jailor, String sender, String message) {
+        String jailRoom = "JAIL_" + jailor;
+
+        // Sohbet mesajı oluştur
+        ChatMessageResponse chatResponse = new ChatMessageResponse(
+                sender,
+                message,
+                "JAIL"
+        );
+
+        // Sohbet mesajını paketle
+        Message chatMessage = new Message(MessageType.CHAT_MESSAGE);
+        chatMessage.addData("chatMessage", chatResponse);
+
+        // Hapishane odasındaki tüm oyunculara gönder
+        broadcastToRoom(jailRoom, chatMessage);
+    }
+
     /**
      * Oyuncuyu belirtilen odaya ekler
      */

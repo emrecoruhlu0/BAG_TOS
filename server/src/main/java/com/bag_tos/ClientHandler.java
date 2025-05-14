@@ -324,6 +324,16 @@ public class ClientHandler implements Runnable {
                 try {
                     ActionType actionType = ActionType.valueOf(actionTypeStr);
 
+                    if (actionType == ActionType.JAIL && game.getCurrentPhase() != GamePhase.DAY) {
+                        sendErrorMessage("WRONG_PHASE", "JAIL aksiyonu sadece gündüz fazında kullanılabilir. Mevcut faz: " + game.getCurrentPhase());
+                        return;
+                    }
+
+                    if (actionType == ActionType.EXECUTE && game.getCurrentPhase() != GamePhase.NIGHT) {
+                        sendErrorMessage("WRONG_PHASE", "EXECUTE aksiyonu sadece gece fazında kullanılabilir. Mevcut faz: " + game.getCurrentPhase());
+                        return;
+                    }
+
                     // Kendi üzerinde aksiyon kontrolü
                     if (!GameConfig.ALLOW_SELF_ACTIONS && username.equals(target)) {
                         // Doktor rolü için özel durum

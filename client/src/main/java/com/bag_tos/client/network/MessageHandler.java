@@ -282,12 +282,15 @@ public class MessageHandler implements NetworkManager.MessageListener {
         if ("NIGHT".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.NIGHT) {
             gameState.setCurrentPhase(GameState.Phase.NIGHT);
             fazDegisti = true;
+            System.out.println("GameState'teki faz NIGHT olarak güncellendi");
         } else if ("DAY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.DAY) {
             gameState.setCurrentPhase(GameState.Phase.DAY);
             fazDegisti = true;
+            System.out.println("GameState'teki faz DAY olarak güncellendi");
         } else if ("LOBBY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.LOBBY) {
             gameState.setCurrentPhase(GameState.Phase.LOBBY);
             fazDegisti = true;
+            System.out.println("GameState'teki faz LOBBY olarak güncellendi");
         }
 
         // Sistem mesajı ekle
@@ -299,23 +302,30 @@ public class MessageHandler implements NetworkManager.MessageListener {
             }
         }
 
-        // Faz değiştiyse UI'ı tam güncelle
-        if (fazDegisti && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
-            // Kısa bir gecikme sonra aksiyon panelini zorla güncelle
-            new java.util.Timer().schedule(
-                    new java.util.TimerTask() {
-                        @Override
-                        public void run() {
-                            if (gameController != null) {
-                                gameController.forceUpdateActionPanel();
-                            }
-                        }
-                    },
-                    1000  // 1 saniye gecikme
-            );
+        // Faz değiştiyse UI'ı hemen güncelle
+        if (fazDegisti) {
+            Platform.runLater(() -> {
+                if (gameController != null) {
+                    gameController.updatePhaseDisplay();
+                    System.out.println("Faz gösterimi güncellendi: " + gameState.getCurrentPhase());
+
+                    // 0.5 saniye sonra aksiyon panelini güncelle
+                    new java.util.Timer().schedule(
+                            new java.util.TimerTask() {
+                                @Override
+                                public void run() {
+                                    Platform.runLater(() -> {
+                                        gameController.updateActionsOnly();
+                                        System.out.println("Aksiyon kontrolleri güncellendi");
+                                    });
+                                }
+                            },
+                            500
+                    );
+                }
+            });
         }
     }
-
     private void handleGameEvent(String event, Message message) {
         switch (event) {
             case "PLAYER_KILLED":
@@ -334,6 +344,15 @@ public class MessageHandler implements NetworkManager.MessageListener {
             case "NO_EXECUTION":
                 // Kimse asılmadı
                 gameState.addSystemMessage("Bugün kimse asılmadı.");
+                break;
+            case "JAIL_START":
+            case "JAIL_END":
+            case "PLAYER_JAILED":
+            case "JAILOR_ACTIVE":
+            case "JAILOR_EXECUTION":
+                if (gameController != null) {
+                    gameController.handleJailEvent(event, message);
+                }
                 break;
             // Diğer olaylar için ek işleme mantığı eklenebilir
         }
@@ -511,6 +530,12 @@ public class MessageHandler implements NetworkManager.MessageListener {
                         gameState.addMafiaMessage(chatMessage);
                         if (gameController != null) {
                             gameController.handleMafiaMessage(chatMessage);
+                        }
+                    } else if ("JAIL".equals(room)) {
+                        // Hapishane mesajı
+                        gameState.addSystemMessage("Hapishane: " + chatMessage);
+                        if (gameController != null) {
+                            gameController.getView().addJailMessage(chatMessage);
                         }
                     } else {
                         // Genel mesaj

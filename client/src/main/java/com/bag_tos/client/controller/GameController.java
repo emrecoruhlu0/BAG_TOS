@@ -113,7 +113,22 @@ public class GameController {
                     view.addSystemMessage("Bu gece hapsedildiniz!");
                 }
                 break;
+
+            case "JAILOR_ACTIVE":
+                String prisoner = (String) message.getDataValue("prisoner");
+                if (prisoner != null) {
+                    view.showJailChat();
+                    view.addSystemMessage(prisoner + " adlı oyuncuyu hapsettiniz.");
+                }
+                break;
         }
+    }
+
+    public  void updatePhaseDisplay() {
+        GameState.Phase currentPhase = gameState.getCurrentPhase();
+        System.out.println("updatePhaseDisplay çağrıldı, mevcut faz: " + currentPhase);
+
+        view.updatePhase(currentPhase);
     }
 
     private void setupActionHandlers() {
@@ -354,12 +369,6 @@ public class GameController {
             // Oyuncu adını güncelle
             view.updateUsername(gameState.getCurrentUsername());
         });
-    }
-
-    // Her bileşen için ayrı güncelleme metodları
-    private void updatePhaseDisplay() {
-        view.updatePhase(gameState.getCurrentPhase());
-        System.out.println("UI Faz Güncellemesi: " + gameState.getCurrentPhase()); // Debug log
     }
 
     private void updateRoleDisplay() {
