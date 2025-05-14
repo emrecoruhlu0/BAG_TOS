@@ -124,11 +124,27 @@ public class GameController {
         }
     }
 
-    public  void updatePhaseDisplay() {
+    public void updatePhaseDisplay() {
         GameState.Phase currentPhase = gameState.getCurrentPhase();
         System.out.println("updatePhaseDisplay çağrıldı, mevcut faz: " + currentPhase);
 
-        view.updatePhase(currentPhase);
+        // UI thread kontrolü ekle
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> updatePhaseDisplay());
+            return;
+        }
+
+        try {
+            view.updatePhase(currentPhase);
+
+            // YENİ - Faz değişince chat kontrollerini güncelle
+            updateChatControls();
+
+            System.out.println("Faz gösterimi güncellendi: " + currentPhase);
+        } catch (Exception e) {
+            System.err.println("Faz gösterimi güncellenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void setupActionHandlers() {
@@ -443,34 +459,34 @@ public class GameController {
     }
 
     public void updateActionsOnly() {
-        Platform.runLater(() -> {
-            // Debug log
-            System.out.println("updateActionsOnly çağrıldı");
-            System.out.println("Oyuncu sayısı: " + gameState.getPlayers().size());
+        // UI thread kontrolü ekle
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> updateActionsOnly());
+            return;
+        }
+
+        try {
+            // Debug bilgi ekle
+            System.out.println("UpdateActionsOnly çağrıldı, faz: " + gameState.getCurrentPhase());
 
             // Aksiyon panelini temizle
             view.getActionPanel().clearActions();
 
-            // Önce oyuncu listesini ayarla
-            String currentRole = gameState.getCurrentRole();
-            String currentUsername = gameState.getCurrentUsername();
-
-            System.out.println("Güncel rol: " + currentRole + ", Kullanıcı: " + currentUsername);
-
-            // Doktor rolü için özel durum kontrolü
-            if ("Doktor".equals(currentRole) && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
-                // Doktor tüm oyuncuları görebilir (kendisi dahil)
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers());
-            } else {
-                // Diğer roller kendilerini göremez
-                view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
+            // Oyuncu listesi kontrolü
+            if (gameState.getPlayers().isEmpty()) {
+                System.out.println("UYARI: Oyuncu listesi boş, aksiyonlar güncellenemiyor!");
+                return;
             }
 
-            // Sonra aksiyonları yapılandır
+            // Mevcut role ve faza göre aksiyonları ayarla
             setupActionHandlers();
-        });
-    }
 
+            System.out.println("Aksiyon paneli güncellendi, faz: " + gameState.getCurrentPhase());
+        } catch (Exception e) {
+            System.err.println("Aksiyon güncellemesi sırasında hata: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
     public void handleSystemMessage(String message) {
         Platform.runLater(() -> {
             view.addSystemMessage(message);

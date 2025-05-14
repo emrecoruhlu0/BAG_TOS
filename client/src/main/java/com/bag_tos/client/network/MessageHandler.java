@@ -155,8 +155,54 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
     }
 
+    private void updateGamePhase(String newPhaseName, boolean forceUpdate) {
+        if (newPhaseName == null) return;
+
+        GameState.Phase oldPhase = gameState.getCurrentPhase();
+        GameState.Phase newPhase;
+
+        switch (newPhaseName) {
+            case "NIGHT":
+                newPhase = GameState.Phase.NIGHT;
+                break;
+            case "DAY":
+                newPhase = GameState.Phase.DAY;
+                break;
+            default:
+                newPhase = GameState.Phase.LOBBY;
+        }
+
+        // Faz değiştiyse veya zorunlu güncelleme varsa işle
+        if (forceUpdate || oldPhase != newPhase) {
+            System.out.println("Faz değişiyor: " + oldPhase + " -> " + newPhase + (forceUpdate ? " (zorla)" : ""));
+            gameState.setCurrentPhase(newPhase);
+
+            // UI güncellemesi
+            Platform.runLater(() -> {
+                if (gameController != null) {
+                    gameController.updatePhaseDisplay();
+
+                    // Yeni faz için aksiyon panelini güncelle
+                    new java.util.Timer().schedule(
+                            new java.util.TimerTask() {
+                                @Override
+                                public void run() {
+                                    Platform.runLater(() -> {
+                                        gameController.updateActionsOnly();
+                                    });
+                                }
+                            }, 300  // 300ms bekle
+                    );
+                }
+            });
+        }
+    }
+
     private void handleGameStateMessage(Message message) {
         try {
+            // YENİ - Faz değişimini atlama bayrağını kontrol et
+            Boolean skipPhaseUpdate = (Boolean) message.getDataValue("skipPhaseUpdate");
+
             // GameState bilgisini al
             GameStateResponse gameStateResponse = null;
             if (message.getDataValue("gameState") != null) {
@@ -164,39 +210,33 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 gameStateResponse = JsonUtils.fromJson(jsonStr, GameStateResponse.class);
             }
 
-            // Faz bilgisini güncelle - BU KISIM ÖNEMLİ
-            String phase = (String) message.getDataValue("phase");
-            if (phase != null) {
-                System.out.println("Sunucudan faz güncellemesi: " + phase);
-                switch (phase) {
-                    case "NIGHT":
-                        gameState.setCurrentPhase(GameState.Phase.NIGHT);
-                        break;
-                    case "DAY":
-                        gameState.setCurrentPhase(GameState.Phase.DAY);
-                        break;
-                    case "LOBBY":
-                    default:
-                        gameState.setCurrentPhase(GameState.Phase.LOBBY);
-                        break;
+            // Faz bilgisini güncelle (SADECE skipPhaseUpdate false ise)
+            if (skipPhaseUpdate == null || !skipPhaseUpdate) {
+                String phase = (String) message.getDataValue("phase");
+                if (phase != null) {
+                    // YENİ - Merkezi metodu çağır (zorunlu güncelleme OLMADAN)
+                    updateGamePhase(phase, false);
                 }
             }
 
             // Zamanı güncelle
             if (message.getDataValue("remainingTime") != null) {
                 Integer time = (Integer) message.getDataValue("remainingTime");
-                gameState.setRemainingTime(time);
-            }
+                Integer oldTime = gameState.getRemainingTime();
 
+                // Değişim olduysa güncelle ve logla
+                if (time != null && (oldTime == null || !time.equals(oldTime))) {
+                    System.out.println("Süre güncelleniyor: " + oldTime + " -> " + time);
+                    gameState.setRemainingTime(time);
+
+                    // UI'ı güncelle
+                    if (gameController != null) {
+                        gameController.updateTimeOnly();
+                    }
+                }
+            }   
             // Oyuncu listesini güncelle
-            if (!initialPlayerUpdateDone && gameStateResponse != null && gameStateResponse.getPlayers() != null) {
-                updatePlayerList(gameStateResponse.getPlayers());
-                updateFullUI();
-
-                // İlk güncellemeyi tamamlandı olarak işaretle
-                initialPlayerUpdateDone = true;
-                System.out.println("İlk oyuncu listesi güncellemesi tamamlandı");
-            } else if (message.getDataValue("players") != null) {
+            if (message.getDataValue("players") != null) {
                 List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
                 for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
                     String username = (String) playerInfoRaw.get("username");
@@ -230,29 +270,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             String state = (String) message.getDataValue("state");
             if (state != null && state.equals("GAME_STARTING") && lobbyController != null) {
                 lobbyController.startGame();
-
-                // Oyun başlatıldığında kısa bir gecikme ile aksiyonları güncelle
-                new java.util.Timer().schedule(
-                        new java.util.TimerTask() {
-                            @Override
-                            public void run() {
-                                Platform.runLater(() -> {
-                                    // GameController oluşturuldu mu kontrol et
-                                    if (gameController != null) {
-                                        // Debug log
-                                        System.out.println("Oyun başladı - aksiyonları güncellemek için zamanlı görev çalışıyor");
-                                        System.out.println("Oyuncu listesi boyutu: " + gameState.getPlayers().size());
-
-                                        // Önce tam güncelleme yap
-                                        gameController.updateUI();
-                                        // Sonra özellikle aksiyonları güncelle
-                                        gameController.updateActionsOnly();
-                                    }
-                                });
-                            }
-                        },
-                        1000 // 1 saniye gecikme
-                );
             }
 
             // Oyun sonu kontrolü
@@ -267,7 +284,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
-
     private void handlePhaseChangeMessage(Message message) {
         // Faz bilgisini al
         String newPhase = (String) message.getDataValue("newPhase");
@@ -276,22 +292,8 @@ public class MessageHandler implements NetworkManager.MessageListener {
         // Debug log
         System.out.println("Faz değişim mesajı alındı: " + newPhase);
 
-        // GameState'i güncelle
-        boolean fazDegisti = false;
-
-        if ("NIGHT".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.NIGHT) {
-            gameState.setCurrentPhase(GameState.Phase.NIGHT);
-            fazDegisti = true;
-            System.out.println("GameState'teki faz NIGHT olarak güncellendi");
-        } else if ("DAY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.DAY) {
-            gameState.setCurrentPhase(GameState.Phase.DAY);
-            fazDegisti = true;
-            System.out.println("GameState'teki faz DAY olarak güncellendi");
-        } else if ("LOBBY".equals(newPhase) && gameState.getCurrentPhase() != GameState.Phase.LOBBY) {
-            gameState.setCurrentPhase(GameState.Phase.LOBBY);
-            fazDegisti = true;
-            System.out.println("GameState'teki faz LOBBY olarak güncellendi");
-        }
+        // YENİ - Merkezi metodu çağır (zorla güncelleme ile)
+        updateGamePhase(newPhase, true);
 
         // Sistem mesajı ekle
         String phaseMessage = (String) message.getDataValue("message");
@@ -302,30 +304,27 @@ public class MessageHandler implements NetworkManager.MessageListener {
             }
         }
 
-        // Faz değiştiyse UI'ı hemen güncelle
-        if (fazDegisti) {
-            Platform.runLater(() -> {
-                if (gameController != null) {
-                    gameController.updatePhaseDisplay();
-                    System.out.println("Faz gösterimi güncellendi: " + gameState.getCurrentPhase());
+        // YENİ - Oyuncu listesini güncelle (eğer faz değişim mesajı oyuncu listesi içeriyorsa):
+        if (message.getDataValue("players") != null) {
+            List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
+            for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
+                String username = (String) playerInfoRaw.get("username");
+                Boolean alive = (Boolean) playerInfoRaw.get("alive");
+                String role = (String) playerInfoRaw.get("role");
 
-                    // 0.5 saniye sonra aksiyon panelini güncelle
-                    new java.util.Timer().schedule(
-                            new java.util.TimerTask() {
-                                @Override
-                                public void run() {
-                                    Platform.runLater(() -> {
-                                        gameController.updateActionsOnly();
-                                        System.out.println("Aksiyon kontrolleri güncellendi");
-                                    });
-                                }
-                            },
-                            500
-                    );
-                }
-            });
+                Player player = findOrCreatePlayer(username);
+                if (alive != null) player.setAlive(alive);
+                if (role != null && !role.equals("UNKNOWN")) player.setRole(role);
+            }
+        }
+
+        // YENİ - Kalan süre güncelle:
+        if (message.getDataValue("remainingTime") != null) {
+            Integer time = (Integer) message.getDataValue("remainingTime");
+            gameState.setRemainingTime(time);
         }
     }
+
     private void handleGameEvent(String event, Message message) {
         switch (event) {
             case "PLAYER_KILLED":
