@@ -14,10 +14,13 @@ import com.bag_tos.common.message.request.ChatRequest;
 import com.bag_tos.common.message.request.VoteRequest;
 import com.bag_tos.common.model.ActionType;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
 import javafx.stage.Stage;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class GameController {
@@ -329,6 +332,8 @@ public class GameController {
             try {
                 view.getActionPanel().clearActions();
 
+                view.getActionPanel().setVisible(true);
+
                 // Geçerli oyuncu bilgileri
                 String currentUsername = gameState.getCurrentUsername();
                 String currentRole = gameState.getCurrentRole();
@@ -339,8 +344,6 @@ public class GameController {
                 Boolean isJailed = (Boolean) gameState.getData("isJailed");
                 if (isJailed != null && isJailed && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
                     System.out.println("Oyuncu hapsedilmiş, aksiyon paneli boş bırakılıyor");
-
-                    // İsterseniz hapis mesajı gösterebilirsiniz
                     view.addSystemMessage("Hapsedildiniz, herhangi bir aksiyon gerçekleştiremezsiniz.");
                     return;
                 }
@@ -352,12 +355,10 @@ public class GameController {
                     return;
                 }
 
-                // Eğer Jailor ise ve mevcut listede EXECUTE aksiyonu yoksa
-                if (currentRole.equals("Gardiyan") &&
-                        gameState.getCurrentPhase() == GameState.Phase.NIGHT &&
-                        (availableActions == null || !availableActions.contains("EXECUTE"))) {
-                    System.out.println("Gardiyan gündüz kimseyi hapsetmemiş, aksiyon paneli boş bırakılıyor");
-                    view.addSystemMessage("Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
+                // İnaktif Jailor kontrolü
+                if (availableActions != null && availableActions.contains("NO_ACTION") &&
+                        currentRole.equals("Gardiyan") && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+                    showInactiveJailorMessage();
                     return;
                 }
 
@@ -367,13 +368,38 @@ public class GameController {
                     return;
                 }
 
-                // Doktor için tüm canlı oyuncular (kendisi dahil)
-                if (currentRole != null && currentRole.equals("Doktor")) {
-                    System.out.println("Doktor rolü için tüm canlı oyuncular hedef listesine ekleniyor (kendisi dahil)");
+                // Mafya için özel hedef filtreleme
+                if ("Mafya".equals(currentRole) && gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+                    System.out.println("Mafya filtresi uygulanıyor...");
+
+                    // Mafya üyelerini topla
+                    List<String> mafiaUsernames = new ArrayList<>();
+                    for (Player p : gameState.getPlayers()) {
+                        if ("Mafya".equals(p.getRole())) {
+                            mafiaUsernames.add(p.getUsername());
+                            System.out.println("Mafya üyesi tespit edildi: " + p.getUsername());
+                        }
+                    }
+
+                    // Filtrelenmiş oyuncu listesi oluştur
+                    List<Player> filteredPlayers = new ArrayList<>();
+                    for (Player p : gameState.getPlayers()) {
+                        if (p.isAlive() && !p.getUsername().equals(currentUsername) &&
+                                !mafiaUsernames.contains(p.getUsername())) {
+                            filteredPlayers.add(p);
+                            System.out.println("Mafya hedef listesine eklendi: " + p.getUsername());
+                        }
+                    }
+
+                    // Filtrelenmiş listeyi ayarla
+                    view.getActionPanel().setCustomTargetList(filteredPlayers);
+
+                } else if ("Doktor".equals(currentRole)) {
+                    // Doktor kendi üzerine aksiyon yapabilir
                     view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+
                 } else {
-                    // Diğer roller için kendisi hariç oyuncular
-                    System.out.println("Diğer roller için canlı oyuncular hedef listesine ekleniyor (kendisi hariç)");
+                    // Diğer roller için kendisi hariç
                     view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
                 }
 
@@ -484,6 +510,26 @@ public class GameController {
             }
         });
     }
+
+    public void showInactiveJailorMessage() {
+        Platform.runLater(() -> {
+            try {
+                view.getActionPanel().clearActions();
+                view.addSystemMessage("Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
+
+                // Panel tamamen kapatılmıyor, sadece "Aksiyon yok" mesajı gösteriliyor
+                Label noActionLabel = new Label("Bu gece aksiyon yok");
+                noActionLabel.getStyleClass().add("warning-text");
+                view.getActionPanel().getChildren().add(noActionLabel);
+
+                System.out.println("İnaktif Jailor mesajı gösterildi");
+            } catch (Exception e) {
+                System.err.println("İnaktif Jailor mesajı gösterilirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
     public void forceUpdateActionPanel() {
         Platform.runLater(() -> {
             if (gameState.getPlayers().isEmpty()) {
@@ -747,5 +793,18 @@ public class GameController {
 
     public GameView getView() {
         return view;
+    }
+
+    public void clearActionPanel() {
+        Platform.runLater(() -> {
+            try {
+                view.getActionPanel().clearActions();
+                view.getActionPanel().setVisible(false);
+                System.out.println("Aksiyon paneli gizlendi - Pasif Jailor için");
+            } catch (Exception e) {
+                System.err.println("Aksiyon paneli gizlenirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 }

@@ -465,6 +465,16 @@ public class MessageHandler implements NetworkManager.MessageListener {
                     gameController.handleJailEvent(event, message);
                 }
                 break;
+            case "JAIL_PROTECTION":
+                // Hapishane koruması için yeni olay
+                String message_text = (String) message.getDataValue("message");
+                if (message_text != null) {
+                    gameState.addSystemMessage(message_text);
+                    if (gameController != null) {
+                        gameController.handleSystemMessage(message_text);
+                    }
+                }
+                break;
             case "PLAYER_JAILED":
                 // Oyuncu hapsedildi
                 if (gameState.getCurrentUsername().equals(message.getDataValue("target"))) {
@@ -484,6 +494,25 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 // Hapishane sona erdi, flag'i temizle
                 gameState.setData("isJailed", false);
                 System.out.println("Hapishane sona erdi, isJailed = false olarak ayarlandı");
+                break;
+            case "JAILOR_INACTIVE":
+                // Eğer bu oyuncu jailor ise ve gündüz birini hapsetmedi
+                if (gameState.getCurrentRole().equals("Gardiyan")) {
+                    String messageText = (String) message.getDataValue("message");
+                    if (messageText != null) {
+                        gameState.addSystemMessage(messageText);
+                        if (gameController != null) {
+                            gameController.handleSystemMessage(messageText);
+                        }
+                    }
+
+                    // Aksiyon panelinde özel bir mesaj göster, ama paneli gizleme
+                    if (gameController != null) {
+                        Platform.runLater(() -> {
+                            gameController.showInactiveJailorMessage();
+                        });
+                    }
+                }
                 break;
             // Diğer olaylar için ek işleme mantığı eklenebilir
         }
@@ -568,6 +597,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
             if (role != null) {
                 // Rolü ayarla
                 gameState.setCurrentRole(role);
+                System.out.println("[DEBUG] ROL ATANDI: " + gameState.getCurrentUsername() + " -> " + role);
 
                 // Mesajı göster
                 String roleMessage = "Rolünüz: " + role;

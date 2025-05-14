@@ -16,6 +16,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 import java.util.List;
+import java.util.function.Predicate; // Bu import eklendi
 import java.util.stream.Collectors;
 
 public class ActionPanel extends VBox {
@@ -45,6 +46,51 @@ public class ActionPanel extends VBox {
         targetPlayers.clear();
         if (players != null) {
             targetPlayers.addAll(players);
+        }
+    }
+
+    public void setFilteredAlivePlayers(List<Player> players, String currentUsername, Predicate<Player> filter) {
+        targetPlayers.clear();
+        if (players != null && !players.isEmpty()) {
+            // Debug
+            System.out.println("setFilteredAlivePlayers çağrıldı, oyuncu sayısı: " + players.size());
+            System.out.println("Mevcut kullanıcı: " + currentUsername);
+
+            // Canlı ve filtreyi geçen oyuncuları ekle
+            List<Player> filteredPlayers = players.stream()
+                    .filter(Player::isAlive)
+                    .filter(p -> !p.getUsername().equals(currentUsername)) // Kendini hedef alamama
+                    .filter(filter) // Özel filtre (diğer mafya üyelerini çıkarmak için)
+                    .collect(Collectors.toList());
+
+            targetPlayers.addAll(filteredPlayers);
+
+            // Debug
+            System.out.println("Filtrelenmiş hedef listesine eklenen oyuncu sayısı: " + targetPlayers.size());
+        } else {
+            System.out.println("UYARI: Oyuncu listesi boş!");
+        }
+    }
+
+    public ObservableList<Player> getTargetPlayersList() {
+        return targetPlayers;
+    }
+
+    public void setManualTargetList(List<Player> players) {
+        targetPlayers.clear();
+        if (players != null) {
+            targetPlayers.addAll(players);
+            System.out.println("Manuel hedef listesi ayarlandı, oyuncu sayısı: " + targetPlayers.size());
+        }
+    }
+
+    public void setCustomTargetList(List<Player> players) {
+        targetPlayers.clear();
+        if (players != null && !players.isEmpty()) {
+            targetPlayers.addAll(players);
+            System.out.println("Özel hedef listesi ayarlandı: " + targetPlayers.size() + " oyuncu");
+        } else {
+            System.out.println("UYARI: Özel hedef listesi boş!");
         }
     }
 
@@ -175,7 +221,19 @@ public class ActionPanel extends VBox {
 
         Label actionLabel = new Label("Öldür:");
 
-        ComboBox<Player> targetCombo = new ComboBox<>(targetPlayers);
+        // ÖNEMLİ: ComboBox oluşturmadan önce mafya kontrolü yap
+        // Mafya üyelerini hedef listesinden çıkar
+        ObservableList<Player> filteredTargets = FXCollections.observableArrayList();
+        for (Player p : targetPlayers) {
+            String role = p.getRole();
+            boolean isMafia = role != null && role.equals("Mafya");
+
+            if (!isMafia) {
+                filteredTargets.add(p);
+            }
+        }
+
+        ComboBox<Player> targetCombo = new ComboBox<>(filteredTargets); // Filtrelenmiş listeyi kullan
         targetCombo.setPromptText("Hedef seçin");
         targetCombo.setCellFactory(param -> new PlayerListCell());
         targetCombo.setButtonCell(new PlayerListCell());
