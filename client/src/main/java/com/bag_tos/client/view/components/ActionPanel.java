@@ -15,6 +15,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate; // Bu import eklendi
 import java.util.stream.Collectors;
@@ -137,34 +138,6 @@ public class ActionPanel extends VBox {
         }
     }
 
-    public void setAlivePlayers(List<Player> players, String currentUsername, String currentRole) {
-        targetPlayers.clear();
-
-        if (players != null && !players.isEmpty()) {
-            // Debug
-            System.out.println("Hedefler ekleniyor - Rol: " + currentRole + ", Kullanıcı: " + currentUsername);
-
-            // Tüm canlı oyuncuları filtrele
-            List<Player> validTargets = players.stream()
-                    .filter(Player::isAlive)
-                    .filter(player -> {
-                        // Eğer oyuncu kendisi ise, sadece doktor için kendini hedef göster
-                        if (player.getUsername().equals(currentUsername)) {
-                            return "Doktor".equals(currentRole);
-                        }
-                        return true; // Diğer oyuncular her zaman gösterilir
-                    })
-                    .collect(Collectors.toList());
-
-            targetPlayers.addAll(validTargets);
-
-            // Debug
-            System.out.println("Eklenen hedef sayısı: " + targetPlayers.size());
-        } else {
-            System.out.println("UYARI: Oyuncu listesi boş!");
-        }
-    }
-
     public void addJailAction(ActionHandler handler) {
         HBox jailActionBox = new HBox(10);
         jailActionBox.setAlignment(Pos.CENTER);
@@ -215,14 +188,16 @@ public class ActionPanel extends VBox {
         System.out.println("İnfaz butonu eklendi");
     }
 
-    /**
-     * Öldürme aksiyonu ekler
-     */
-    public void addKillAction(ActionHandler handler) {
+    public void addKillAction(ActionHandler handler, List<String> excludeUsernames) {
         System.out.println("DEBUG - KILL ACTION: Öldürme aksiyonu ekleniyor...");
         System.out.println("DEBUG - KILL ACTION: Toplam hedef sayısı: " + targetPlayers.size());
 
-        // Her hedefi logla
+        // Exclude listesi null ise boş liste kullan
+        if (excludeUsernames == null) {
+            excludeUsernames = Collections.emptyList();
+        }
+
+        // Her hedefi logla (debug için)
         for (Player p : targetPlayers) {
             System.out.println("DEBUG - KILL ACTION: Hedef - " + p.getUsername() +
                     ", Rol: " + p.getRole() +
@@ -239,14 +214,14 @@ public class ActionPanel extends VBox {
 
         // Her hedefi değerlendir
         for (Player p : targetPlayers) {
-            // Sadece rolü "Mafya" olmayanları ekle
-            if (p.getRole() == null || !p.getRole().equals("Mafya")) {
+            // Hayatta olma ve hariç tutulacak kullanıcı adına sahip olmama kontrolü
+            if (p.isAlive() && !excludeUsernames.contains(p.getUsername())) {
                 filteredTargets.add(p);
                 System.out.println("DEBUG - KILL ACTION: Filtrelenmiş listeye eklendi: " +
                         p.getUsername() + ", Rol: " + p.getRole());
             } else {
-                System.out.println("DEBUG - KILL ACTION: FİLTRELENDİ (Mafya): " +
-                        p.getUsername());
+                System.out.println("DEBUG - KILL ACTION: FİLTRELENDİ: " + p.getUsername() +
+                        (excludeUsernames.contains(p.getUsername()) ? " (Hariç Tutulan Kullanıcı)" : " (Hayatta Değil)"));
             }
         }
 
@@ -255,32 +230,8 @@ public class ActionPanel extends VBox {
         targetCombo.setPromptText("Hedef seçin");
 
         // Özel hücre fabrikası
-        targetCombo.setCellFactory(param -> new javafx.scene.control.ListCell<Player>() {
-            @Override
-            protected void updateItem(Player player, boolean empty) {
-                super.updateItem(player, empty);
-
-                if (empty || player == null) {
-                    setText(null);
-                } else {
-                    setText(player.getUsername());
-                }
-            }
-        });
-
-        // Buton hücresi
-        targetCombo.setButtonCell(new javafx.scene.control.ListCell<Player>() {
-            @Override
-            protected void updateItem(Player player, boolean empty) {
-                super.updateItem(player, empty);
-
-                if (empty || player == null) {
-                    setText(null);
-                } else {
-                    setText(player.getUsername());
-                }
-            }
-        });
+        targetCombo.setCellFactory(param -> new PlayerListCell());
+        targetCombo.setButtonCell(new PlayerListCell());
 
         Button killButton = new Button("Öldür");
         killButton.getStyleClass().add("danger-button");
@@ -300,7 +251,6 @@ public class ActionPanel extends VBox {
         System.out.println("DEBUG - KILL ACTION: Öldürme aksiyonu eklendi, " +
                 "filtrelenmiş hedef sayısı: " + filteredTargets.size());
     }
-
     // ActionPanel.java içinde
     public void addKillActionForMafia(ActionHandler handler, List<String> mafiaMembers) {
         HBox killActionBox = new HBox(10);
@@ -377,6 +327,7 @@ public class ActionPanel extends VBox {
         healActionBox.getChildren().addAll(actionLabel, targetCombo, healButton);
         getChildren().add(healActionBox);
     }
+
     public void addVoteAction(ActionHandler handler) {
         HBox voteActionBox = new HBox(10);
         voteActionBox.setAlignment(Pos.CENTER);

@@ -717,6 +717,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
             e.printStackTrace();
         }
     }
+
     private void handleChatMessage(Message message) {
         try {
             if (message.getDataValue("chatMessage") != null) {

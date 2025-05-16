@@ -61,6 +61,7 @@
 
     <build>
         <plugins>
+            <!-- Mevcut plugin'ler korunuyor -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -88,8 +89,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
             </plugin>
-            <!-- Dağıtım için Shade Plugin - Şimdilik yorum satırı olarak bırakıyoruz -->
-            <!--
+
+            <!-- Shade Plugin aktif hale getiriliyor -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -106,12 +107,12 @@
                                     <mainClass>com.bag_tos.client.ClientLauncher</mainClass>
                                 </transformer>
                             </transformers>
+                            <finalName>BAG_TOS_Client</finalName>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
-            -->
         </plugins>
     </build>
 </project>

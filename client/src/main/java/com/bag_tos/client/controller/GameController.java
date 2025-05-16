@@ -27,6 +27,7 @@ import javafx.stage.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class GameController {
     private GameView view;
@@ -217,8 +218,23 @@ public class GameController {
         }
 
         // Rol ve faza uygun oyuncuları aksiyon paneline ekle
-        if (currentRole != null && currentRole.equals("Doktor")) {
+        if (currentRole.equals("Doktor")) {
             view.getActionPanel().setAlivePlayers(gameState.getPlayers());
+        } else if (currentRole.equals("Mafya")) {
+            // Tüm mafya üyelerini bul
+            List<String> mafiaUsernames = gameState.getPlayers().stream()
+                    .filter(p -> "Mafya".equals(p.getRole()))
+                    .map(Player::getUsername)
+                    .collect(Collectors.toList());
+
+            // Sadece mafya olmayan ve hayatta olan oyuncuları filtrele
+            List<Player> nonMafiaTargets = gameState.getPlayers().stream()
+                    .filter(Player::isAlive)
+                    .filter(p -> !mafiaUsernames.contains(p.getUsername()))
+                    .collect(Collectors.toList());
+
+            // Özel bir hedef listesi ayarla
+            view.getActionPanel().setManualTargetList(nonMafiaTargets);
         } else {
             view.getActionPanel().setAlivePlayers(gameState.getPlayers(), currentUsername);
         }
@@ -229,71 +245,80 @@ public class GameController {
         GameState.Phase phase = gameState.getCurrentPhase();
 
         if (phase == GameState.Phase.NIGHT) {
-            if (currentRole.equals("Mafya")) {
-                // Mafya öldürme aksiyonu
-                view.getActionPanel().addKillAction(target -> {
-                    // Kendi üzerinde aksiyon kontrolü
-                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                            target.getUsername().equals(gameState.getCurrentUsername())) {
-                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                        return;
+            switch (currentRole) {
+                case "Mafya" -> {
+                    // Mafya üyelerini belirle
+                    List<String> mafiaUsernames = gameState.getPlayers().stream()
+                            .filter(p -> "Mafya".equals(p.getRole()))
+                            .map(Player::getUsername)
+                            .collect(Collectors.toList());
+
+                    // Mafya oyuncuları kendilerini de gördüğünden, kendinizi de listeye ekleyin
+                    if (!mafiaUsernames.contains(currentUsername)) {
+                        mafiaUsernames.add(currentUsername);
                     }
 
-                    // Öldürme aksiyonu için Message nesnesi oluştur
-                    Message actionMessage = new Message(MessageType.ACTION);
-                    ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
-                    actionMessage.addData("actionRequest", actionRequest);
+                    // Debug için mafya listesini yazdır
+                    System.out.println("Mafya üyeleri: " + String.join(", ", mafiaUsernames));
 
-                    networkManager.sendMessage(actionMessage);
-                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                });
-            } else if (currentRole.equals("Doktor")) {
-                // Doktor iyileştirme aksiyonu
-                view.getActionPanel().addHealAction(target -> {
-                    // Kendi üzerinde aksiyon kontrolü - Doktor rolüne özel muamele
-                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                            target.getUsername().equals(gameState.getCurrentUsername()) &&
-                            !"Doktor".equals(currentRole)) {
-                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                        return;
-                    }
+                    // Mafya öldürme aksiyonu - mafya üyelerini hariç tut
+                    view.getActionPanel().addKillAction(target -> {
+                        // Öldürme aksiyonu için Message nesnesi oluştur
+                        Message actionMessage = new Message(MessageType.ACTION);
+                        ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), target.getUsername());
+                        actionMessage.addData("actionRequest", actionRequest);
 
-                    // İyileştirme aksiyonu için Message nesnesi oluştur
-                    Message actionMessage = new Message(MessageType.ACTION);
-                    ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
-                    actionMessage.addData("actionRequest", actionRequest);
+                        networkManager.sendMessage(actionMessage);
+                        view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                    }, mafiaUsernames);
+                }
+                case "Doktor" ->
+                    // Doktor iyileştirme aksiyonu
+                        view.getActionPanel().addHealAction(target -> {
+                            // Kendi üzerinde aksiyon kontrolü - Doktor rolüne özel muamele
+                            if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                    target.getUsername().equals(gameState.getCurrentUsername()) &&
+                                    !"Doktor".equals(currentRole)) {
+                                view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                return;
+                            }
 
-                    networkManager.sendMessage(actionMessage);
-                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                });
-            } else if (currentRole.equals("Serif")) {
-                // Şerif araştırma aksiyonu
-                view.getActionPanel().addInvestigateAction(target -> {
-                    // Kendi üzerinde aksiyon kontrolü
-                    if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                            target.getUsername().equals(gameState.getCurrentUsername())) {
-                        view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                        return;
-                    }
+                            // İyileştirme aksiyonu için Message nesnesi oluştur
+                            Message actionMessage = new Message(MessageType.ACTION);
+                            ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
+                            actionMessage.addData("actionRequest", actionRequest);
 
-                    // Araştırma aksiyonu için Message nesnesi oluştur
-                    Message actionMessage = new Message(MessageType.ACTION);
-                    ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
-                    actionMessage.addData("actionRequest", actionRequest);
+                            networkManager.sendMessage(actionMessage);
+                            view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                        });
+                case "Serif" ->
+                    // Şerif araştırma aksiyonu
+                        view.getActionPanel().addInvestigateAction(target -> {
+                            // Kendi üzerinde aksiyon kontrolü
+                            if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                    target.getUsername().equals(gameState.getCurrentUsername())) {
+                                view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                                return;
+                            }
 
-                    networkManager.sendMessage(actionMessage);
-                    view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                });
-            } else if (currentRole.equals("Gardiyan")) {
-                // Gardiyanın infaz etme aksiyonu (gece)
-                view.getActionPanel().addExecuteAction(target -> {
-                    Message actionMessage = new Message(MessageType.ACTION);
-                    ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
-                    actionMessage.addData("actionRequest", actionRequest);
+                            // Araştırma aksiyonu için Message nesnesi oluştur
+                            Message actionMessage = new Message(MessageType.ACTION);
+                            ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
+                            actionMessage.addData("actionRequest", actionRequest);
 
-                    networkManager.sendMessage(actionMessage);
-                    view.addSystemMessage("İnfaz kararı verildi!");
-                });
+                            networkManager.sendMessage(actionMessage);
+                            view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                        });
+                case "Gardiyan" ->
+                    // Gardiyanın infaz etme aksiyonu (gece)
+                        view.getActionPanel().addExecuteAction(target -> {
+                            Message actionMessage = new Message(MessageType.ACTION);
+                            ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
+                            actionMessage.addData("actionRequest", actionRequest);
+
+                            networkManager.sendMessage(actionMessage);
+                            view.addSystemMessage("İnfaz kararı verildi!");
+                        });
             }
         } else if (phase == GameState.Phase.DAY) {
             // Gündüz fazında oylamaya izin ver
@@ -335,11 +360,14 @@ public class GameController {
 
         System.out.println("Aksiyon handler'ları başarıyla kuruldu, faz: " + phase + ", rol: " + currentRole);
     }
+
     // MessageHandler tarafından kullanılacak metot (sunucudan gelen aksiyonlara göre UI'ı günceller)
     public void updateActions(List<String> availableActions) {
         // ActionManager'ı kullan
         actionManager.updateActions();
     }
+
+
     public void showInactiveJailorMessage() {
         Platform.runLater(() -> {
             try {
@@ -356,43 +384,6 @@ public class GameController {
                 System.err.println("İnaktif Jailor mesajı gösterilirken hata: " + e.getMessage());
                 e.printStackTrace();
             }
-        });
-    }
-
-    public void forceUpdateActionPanel() {
-        Platform.runLater(() -> {
-            if (gameState.getPlayers().isEmpty()) {
-                System.out.println("UYARI: Oyuncu listesi forceUpdateActionPanel'de boş!");
-
-                // Oyuncu listesi boşsa, tüm oyuncuları almanın başka bir yolunu deneyebiliriz
-                // Örneğin sunucudan yeni bir oyuncu listesi isteği gönderebiliriz
-                // veya varsayılan hedefler belirleyebiliriz
-
-                // Şimdilik geçici bir çözüm olarak tüm aksiyon butonlarını devre dışı bırakalım
-                view.getActionPanel().clearActions();
-                view.getActionPanel().setDisable(true);
-
-                // Kullanıcıya bilgi ver
-                view.addSystemMessage("Hedef listesi henüz hazır değil, lütfen bekleyin...");
-
-                // Belirli bir süre sonra tekrar dene
-                new java.util.Timer().schedule(
-                        new java.util.TimerTask() {
-                            @Override
-                            public void run() {
-                                Platform.runLater(() -> forceUpdateActionPanel());
-                            }
-                        },
-                        2000  // 2 saniye sonra tekrar dene
-                );
-
-                return;
-            }
-
-            // Oyuncu listesi doluysa normal güncelleme yap
-            view.getActionPanel().setDisable(false);
-            updateActions(List.of(gameState.getAvailableAction().split(", ")));
-            System.out.println("Aksiyon paneli zorla güncellendi, oyuncu sayısı: " + gameState.getPlayers().size());
         });
     }
 
@@ -502,9 +493,7 @@ public class GameController {
             e.printStackTrace();
         }
     }
-    /**
-     * Sadece süre göstergesini günceller
-     */
+
     public void updateTimeOnly() {
         Platform.runLater(() -> {
             // Sadece kalan zamanı güncelle, diğer UI öğeleri aynı kalır
@@ -512,9 +501,6 @@ public class GameController {
         });
     }
 
-    /**
-     * Sadece oyuncu listesini günceller
-     */
     public void updatePlayerListOnly() {
         Platform.runLater(() -> {
             // Sadece oyuncu listesini güncelle
@@ -591,124 +577,6 @@ public class GameController {
 
         actionBox.getChildren().addAll(actionLabel, targetCombo, actionButton);
         view.getActionPanel().getChildren().add(actionBox);
-    }
-
-    // Bu metodu GameController.java sınıfına ekleyin
-    private void addDirectMafiaKillAction() {
-        // Aksiyon panelini tamamen temizle
-        view.getActionPanel().clearActions();
-
-        // Mafya üyelerini topla
-        List<String> mafiaUsernames = new ArrayList<>();
-        for (Player p : gameState.getPlayers()) {
-            if ("Mafya".equals(p.getRole())) {
-                mafiaUsernames.add(p.getUsername());
-            }
-        }
-
-        // Sadece mafya olmayan ve hayatta olan oyuncuları içeren özel bir liste oluştur
-        List<Player> nonMafiaTargets = new ArrayList<>();
-        for (Player p : gameState.getPlayers()) {
-            // Oyuncu hayatta MI, mafya DEĞİL Mİ ve kendin DEĞİL Mİ kontrol et
-            if (p.isAlive() &&
-                    !mafiaUsernames.contains(p.getUsername()) &&
-                    !p.getUsername().equals(gameState.getCurrentUsername())) {
-                nonMafiaTargets.add(p);
-            }
-        }
-
-        // Özel aksiyon paneli oluştur
-        HBox killActionBox = new HBox(10);
-        killActionBox.setAlignment(Pos.CENTER);
-
-        Label actionLabel = new Label("Öldür:");
-
-        // Özel ComboBox oluştur
-        ComboBox<String> targetCombo = new ComboBox<>();
-        for (Player p : nonMafiaTargets) {
-            targetCombo.getItems().add(p.getUsername());
-        }
-        targetCombo.setPromptText("Hedef seçin");
-
-        Button killButton = new Button("Öldür");
-        killButton.getStyleClass().add("danger-button");
-        killButton.setOnAction(e -> {
-            String selectedUsername = targetCombo.getValue();
-            if (selectedUsername != null) {
-                // Mesajı oluştur ve gönder
-                Message actionMessage = new Message(MessageType.ACTION);
-                ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), selectedUsername);
-                actionMessage.addData("actionRequest", actionRequest);
-
-                networkManager.sendMessage(actionMessage);
-                view.addSystemMessage("Hedef seçildi: " + selectedUsername);
-                targetCombo.setValue(null);
-            }
-        });
-
-        killActionBox.getChildren().addAll(actionLabel, targetCombo, killButton);
-        view.getActionPanel().getChildren().add(killActionBox);
-
-        System.out.println("Özel mafya öldürme aksiyonu eklendi, hedef sayısı: " + nonMafiaTargets.size());
-    }
-    // Özel mafya aksiyon metodu
-    private void addSpecialMafiaKillAction(List<Player> targets) {
-        view.getActionPanel().clearActions();
-
-        HBox killActionBox = new HBox(10);
-        killActionBox.setAlignment(Pos.CENTER);
-
-        Label actionLabel = new Label("Öldür:");
-
-        ObservableList<Player> filteredTargets = FXCollections.observableArrayList(targets);
-
-        ComboBox<Player> targetCombo = new ComboBox<>(filteredTargets);
-        targetCombo.setPromptText("Hedef seçin");
-        targetCombo.setCellFactory(param -> new javafx.scene.control.ListCell<Player>() {
-            @Override
-            protected void updateItem(Player player, boolean empty) {
-                super.updateItem(player, empty);
-                if (empty || player == null) {
-                    setText(null);
-                } else {
-                    setText(player.getUsername());
-                }
-            }
-        });
-        targetCombo.setButtonCell(new javafx.scene.control.ListCell<Player>() {
-            @Override
-            protected void updateItem(Player player, boolean empty) {
-                super.updateItem(player, empty);
-                if (empty || player == null) {
-                    setText(null);
-                } else {
-                    setText(player.getUsername());
-                }
-            }
-        });
-
-        Button killButton = new Button("Öldür");
-        killButton.getStyleClass().add("danger-button");
-        killButton.setOnAction(e -> {
-            Player selectedTarget = targetCombo.getValue();
-            if (selectedTarget != null) {
-                // Aksiyon mesajı oluştur
-                Message actionMessage = new Message(MessageType.ACTION);
-                ActionRequest actionRequest = new ActionRequest(ActionType.KILL.name(), selectedTarget.getUsername());
-                actionMessage.addData("actionRequest", actionRequest);
-
-                networkManager.sendMessage(actionMessage);
-                view.addSystemMessage("Hedef seçildi: " + selectedTarget.getUsername());
-
-                // Aksiyon sonrası UI state'ini güncelle
-                targetCombo.setValue(null);
-            }
-        });
-
-        killActionBox.getChildren().addAll(actionLabel, targetCombo, killButton);
-        view.getActionPanel().getChildren().add(killActionBox);
-
-        System.out.println("Özel mafya öldürme aksiyonu eklendi, hedef sayısı: " + targets.size());
     }
 
     public void handleSystemMessage(String message) {

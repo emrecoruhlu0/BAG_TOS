@@ -56,6 +56,7 @@
 
   <build>
     <plugins>
+      <!-- Mevcut plugin'ler korunuyor -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -83,30 +84,30 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.1.2</version>
       </plugin>
-      <!-- Dağıtım için Shade Plugin - Şimdilik yorum satırı olarak bırakıyoruz -->
-      <!--
+
+      <!-- Shade Plugin aktif hale getiriliyor -->
       <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
-          <executions>
-              <execution>
-                  <phase>package</phase>
-                  <goals>
-                      <goal>shade</goal>
-                  </goals>
-                  <configuration>
-                      <transformers>
-                          <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                              <mainClass>com.bag_tos.Server</mainClass>
-                          </transformer>
-                      </transformers>
-                      <createDependencyReducedPom>false</createDependencyReducedPom>
-                  </configuration>
-              </execution>
-          </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.4.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.bag_tos.Server</mainClass>
+                </transformer>
+              </transformers>
+              <finalName>BAG_TOS_Server</finalName>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
-      -->
     </plugins>
   </build>
 </project>
