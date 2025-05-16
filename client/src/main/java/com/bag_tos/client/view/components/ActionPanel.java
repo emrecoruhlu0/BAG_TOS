@@ -215,25 +215,111 @@ public class ActionPanel extends VBox {
         System.out.println("İnfaz butonu eklendi");
     }
 
+    /**
+     * Öldürme aksiyonu ekler
+     */
     public void addKillAction(ActionHandler handler) {
+        System.out.println("DEBUG - KILL ACTION: Öldürme aksiyonu ekleniyor...");
+        System.out.println("DEBUG - KILL ACTION: Toplam hedef sayısı: " + targetPlayers.size());
+
+        // Her hedefi logla
+        for (Player p : targetPlayers) {
+            System.out.println("DEBUG - KILL ACTION: Hedef - " + p.getUsername() +
+                    ", Rol: " + p.getRole() +
+                    ", Hayatta: " + p.isAlive());
+        }
+
         HBox killActionBox = new HBox(10);
         killActionBox.setAlignment(Pos.CENTER);
 
         Label actionLabel = new Label("Öldür:");
 
-        // ÖNEMLİ: ComboBox oluşturmadan önce mafya kontrolü yap
-        // Mafya üyelerini hedef listesinden çıkar
+        // Yeni filtrelenmiş liste oluştur
         ObservableList<Player> filteredTargets = FXCollections.observableArrayList();
-        for (Player p : targetPlayers) {
-            String role = p.getRole();
-            boolean isMafia = role != null && role.equals("Mafya");
 
-            if (!isMafia) {
+        // Her hedefi değerlendir
+        for (Player p : targetPlayers) {
+            // Sadece rolü "Mafya" olmayanları ekle
+            if (p.getRole() == null || !p.getRole().equals("Mafya")) {
                 filteredTargets.add(p);
+                System.out.println("DEBUG - KILL ACTION: Filtrelenmiş listeye eklendi: " +
+                        p.getUsername() + ", Rol: " + p.getRole());
+            } else {
+                System.out.println("DEBUG - KILL ACTION: FİLTRELENDİ (Mafya): " +
+                        p.getUsername());
             }
         }
 
-        ComboBox<Player> targetCombo = new ComboBox<>(filteredTargets); // Filtrelenmiş listeyi kullan
+        // Yeni bir ComboBox oluştur
+        ComboBox<Player> targetCombo = new ComboBox<>(filteredTargets);
+        targetCombo.setPromptText("Hedef seçin");
+
+        // Özel hücre fabrikası
+        targetCombo.setCellFactory(param -> new javafx.scene.control.ListCell<Player>() {
+            @Override
+            protected void updateItem(Player player, boolean empty) {
+                super.updateItem(player, empty);
+
+                if (empty || player == null) {
+                    setText(null);
+                } else {
+                    setText(player.getUsername());
+                }
+            }
+        });
+
+        // Buton hücresi
+        targetCombo.setButtonCell(new javafx.scene.control.ListCell<Player>() {
+            @Override
+            protected void updateItem(Player player, boolean empty) {
+                super.updateItem(player, empty);
+
+                if (empty || player == null) {
+                    setText(null);
+                } else {
+                    setText(player.getUsername());
+                }
+            }
+        });
+
+        Button killButton = new Button("Öldür");
+        killButton.getStyleClass().add("danger-button");
+        killButton.setOnAction(e -> {
+            Player selectedTarget = targetCombo.getValue();
+            if (selectedTarget != null) {
+                System.out.println("DEBUG - KILL ACTION: Seçilen hedef: " +
+                        selectedTarget.getUsername());
+                handler.onAction(selectedTarget);
+                targetCombo.setValue(null);
+            }
+        });
+
+        killActionBox.getChildren().addAll(actionLabel, targetCombo, killButton);
+        getChildren().add(killActionBox);
+
+        System.out.println("DEBUG - KILL ACTION: Öldürme aksiyonu eklendi, " +
+                "filtrelenmiş hedef sayısı: " + filteredTargets.size());
+    }
+
+    // ActionPanel.java içinde
+    public void addKillActionForMafia(ActionHandler handler, List<String> mafiaMembers) {
+        HBox killActionBox = new HBox(10);
+        killActionBox.setAlignment(Pos.CENTER);
+
+        Label actionLabel = new Label("Öldür:");
+
+        // Tamamen yeni, kesinlikle filtrelenmiş bir liste oluştur
+        ObservableList<Player> strictlyFilteredList = FXCollections.observableArrayList();
+
+        for (Player p : targetPlayers) {
+            // Sadece mafya olmayan ve hayatta olan oyuncuları ekle
+            if (p.isAlive() && !mafiaMembers.contains(p.getUsername())) {
+                strictlyFilteredList.add(p);
+            }
+        }
+
+        // Yeni bir ComboBox oluştur ve bu listeyi doğrudan kullan
+        ComboBox<Player> targetCombo = new ComboBox<>(strictlyFilteredList);
         targetCombo.setPromptText("Hedef seçin");
         targetCombo.setCellFactory(param -> new PlayerListCell());
         targetCombo.setButtonCell(new PlayerListCell());
@@ -244,7 +330,6 @@ public class ActionPanel extends VBox {
             Player selectedTarget = targetCombo.getValue();
             if (selectedTarget != null) {
                 handler.onAction(selectedTarget);
-                // Aksiyon sonrası UI state'ini güncelle
                 targetCombo.setValue(null);
             }
         });

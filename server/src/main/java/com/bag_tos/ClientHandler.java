@@ -304,26 +304,53 @@ public class ClientHandler implements Runnable {
                 String actionTypeStr = actionRequest.getActionType();
                 String target = actionRequest.getTarget();
 
-                System.out.println("Aksiyon isteği alındı - Tür: " + actionTypeStr + ", Hedef: " + target + ", Oyuncu: " + username);
+                System.out.println("[DEBUG] Aksiyon isteği alındı - Tür: " + actionTypeStr +
+                        ", Hedef: " + target +
+                        ", Oyuncu: " + username);
 
                 if (target == null || target.isEmpty()) {
                     if (actionTypeStr.equals(ActionType.EXECUTE.name())) {
-                        // EXECUTE aksiyonu için özel durum - hedef zaten bilindiğinden boş olabilir
-                        target = "prisoner"; // Daha sonra processJailorActions'da gerçek hedef alınacak
+                        // EXECUTE aksiyonu için özel durum
+                        target = "prisoner";
                     } else {
                         sendErrorMessage("INVALID_TARGET", "Geçersiz hedef!");
                         return;
                     }
                 }
 
-                // Hedef oyuncu hayatta mı kontrol et (EXECUTE için atla)
+                // HAYATTA OLMA KONTROLÜ - YENİ KOD
                 if (!actionTypeStr.equals(ActionType.EXECUTE.name()) && !game.getAlivePlayers().contains(target)) {
                     sendErrorMessage("INVALID_TARGET", "Hedef oyuncu hayatta değil!");
+                    System.out.println("[DEBUG] Ölü oyuncu hedef alınamaz: " + target);
                     return;
                 }
 
                 try {
                     ActionType actionType = ActionType.valueOf(actionTypeStr);
+
+                    if (actionTypeStr.equals(ActionType.KILL.name())) {
+                        Role myRole = game.getRole(username);
+                        Role targetRole = game.getRole(target);
+
+                        // Hem saldıran hem de hedef mafya mı kontrol et
+                        if (myRole != null && targetRole != null &&
+                                myRole.getRoleType() == RoleType.MAFYA &&
+                                targetRole.getRoleType() == RoleType.MAFYA) {
+
+                            sendErrorMessage("INVALID_TARGET", "Diğer mafya üyelerini hedef alamazsınız!");
+                            System.out.println("UYARI: Mafya başka bir mafyayı hedef alamaz: " + username + " -> " + target);
+                            return;
+                        }
+                    }
+
+                    // JAILOR ÖLÜ OYUNCU KONTROLÜ - YENİ KOD
+                    if (actionType == ActionType.JAIL) {
+                        if (!game.getAlivePlayers().contains(target)) {
+                            sendErrorMessage("INVALID_TARGET", "Ölü oyuncuyu hapse atamazsınız!");
+                            System.out.println("[DEBUG] Ölü oyuncu hapse atılamaz: " + target);
+                            return;
+                        }
+                    }
 
                     if (actionType == ActionType.JAIL && game.getCurrentPhase() != GamePhase.DAY) {
                         sendErrorMessage("WRONG_PHASE", "JAIL aksiyonu sadece gündüz fazında kullanılabilir. Mevcut faz: " + game.getCurrentPhase());
@@ -435,6 +462,15 @@ public class ClientHandler implements Runnable {
 
                             // Aksiyonu kaydet
                             game.registerNightAction(username, actionType, target);
+
+                            if (actionType == ActionType.KILL) {
+                                // Mafya başka bir mafyayı öldürmeye çalışıyor mu kontrol et
+                                Role targetRole = game.getRole(target);
+                                if (targetRole != null && targetRole.getRoleType() == RoleType.MAFYA) {
+                                    sendErrorMessage("INVALID_TARGET", "Diğer mafya üyelerine saldıramazsınız!");
+                                    return;
+                                }
+                            }
 
                             // Başarılı işlem bildirimi
                             ActionResultResponse resultResponse = new ActionResultResponse(

@@ -53,6 +53,33 @@ public class Message {
         return this.data.get(key);
     }
 
+    public String toDebugString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Message{type=").append(type);
+        sb.append(", data=");
+
+        if (data != null) {
+            sb.append("{");
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                sb.append(entry.getKey()).append("=");
+                if (entry.getValue() != null) {
+                    sb.append(entry.getValue().toString()).append(", ");
+                } else {
+                    sb.append("null, ");
+                }
+            }
+            if (!data.isEmpty()) {
+                sb.setLength(sb.length() - 2); // Son virgül ve boşluğu kaldır
+            }
+            sb.append("}");
+        } else {
+            sb.append("null");
+        }
+
+        sb.append("}");
+        return sb.toString();
+    }
+
     @Override
     public String toString() {
         return "Message{" +

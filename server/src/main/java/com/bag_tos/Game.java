@@ -605,6 +605,15 @@ public class Game {
             return;
         }
 
+        // Mafya kontrolü - diğer mafya üyeleri hedef alınamaz
+        if (role.getRoleType() == RoleType.MAFYA && actionType == ActionType.KILL) {
+            Role targetRole = roles.get(target);
+            if (targetRole != null && targetRole.getRoleType() == RoleType.MAFYA) {
+                System.out.println("UYARI: Mafya üyesi diğer mafya üyesini hedef alamaz: " + username + " -> " + target);
+                return; // İşlemi iptal et
+            }
+        }
+
         RoleType roleType = role.getRoleType();
 
         if ((actionType == ActionType.KILL && roleType != RoleType.MAFYA) ||
@@ -782,7 +791,10 @@ public class Game {
     }
 
     public void registerJailAction(String jailor, String target) {
+        // Hayatta olma kontrolü
         if (!alivePlayers.contains(jailor) || !alivePlayers.contains(target)) {
+            System.out.println("[HATA] Jailor veya hedef oyuncu hayatta değil! - " +
+                    "Jailor: " + jailor + ", Target: " + target);
             return;
         }
 
@@ -1101,6 +1113,9 @@ public class Game {
         }
     }
 
+    /**
+     * Oyların işlenmesi ve sonuçlandırılması
+     */
     private void processVotes() {
         System.out.println("Oylar işleniyor...");
 
@@ -1115,10 +1130,21 @@ public class Game {
         }
 
         try {
+            // Sadece hayatta olan oyuncuların oylarını say
             Map<String, Integer> voteCounts = new HashMap<>();
 
-            for (String target : votes.values()) {
-                voteCounts.put(target, voteCounts.getOrDefault(target, 0) + 1);
+            for (Map.Entry<String, String> vote : votes.entrySet()) {
+                String voter = vote.getKey();
+                String target = vote.getValue();
+
+                // Oylayan ve hedef hayatta mı kontrol et
+                if (alivePlayers.contains(voter) && alivePlayers.contains(target)) {
+                    voteCounts.put(target, voteCounts.getOrDefault(target, 0) + 1);
+                } else {
+                    System.out.println("[UYARI] Geçersiz oy: " + voter + " -> " + target +
+                            " (Oylayan hayatta: " + alivePlayers.contains(voter) +
+                            ", Hedef hayatta: " + alivePlayers.contains(target) + ")");
+                }
             }
 
             String executedPlayer = null;

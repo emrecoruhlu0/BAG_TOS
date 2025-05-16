@@ -12,6 +12,7 @@ import com.bag_tos.common.model.PlayerInfo;
 import com.bag_tos.common.util.JsonUtils;
 import javafx.application.Platform;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -590,14 +591,25 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 String jsonStr = JsonUtils.toJson(message.getDataValue("roleAssignment"));
                 RoleAssignmentResponse response = JsonUtils.fromJson(jsonStr, RoleAssignmentResponse.class);
                 role = response.getRole();
+                System.out.println("DEBUG: Rol responsedan alındı: " + role);
             } else if (message.getDataValue("role") != null) {
                 role = (String) message.getDataValue("role");
+                System.out.println("DEBUG: Rol doğrudan data'dan alındı: " + role);
             }
 
             if (role != null) {
-                // Rolü ayarla
+                // Rol bilgisini ayarla
+                System.out.println("DEBUG: Rol atama başlıyor - Rol: " + role +
+                        ", Kullanıcı: " + gameState.getCurrentUsername());
                 gameState.setCurrentRole(role);
-                System.out.println("[DEBUG] ROL ATANDI: " + gameState.getCurrentUsername() + " -> " + role);
+
+                // Rol listesini log'a yazdır
+                System.out.println("DEBUG: Tüm oyuncular ve rolleri:");
+                for (Player p : gameState.getPlayers()) {
+                    System.out.println("  - Oyuncu: " + p.getUsername() +
+                            ", Rol: " + p.getRole() +
+                            ", Hayatta: " + p.isAlive());
+                }
 
                 // Mesajı göster
                 String roleMessage = "Rolünüz: " + role;
@@ -606,9 +618,11 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 if (gameController != null) {
                     gameController.handleSystemMessage(roleMessage);
                 }
+            } else {
+                System.out.println("UYARI: Rol bilgisi bulunamadı! Mesaj: " + message.toDebugString());
             }
         } catch (Exception e) {
-            System.err.println("Rol atama mesajı işlenirken hata: " + e.getMessage());
+            System.err.println("DEBUG: Rol atama mesajı işlenirken hata: " + e.getMessage());
             e.printStackTrace();
         }
     }
