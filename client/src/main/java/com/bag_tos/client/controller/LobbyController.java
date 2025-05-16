@@ -105,6 +105,12 @@ public class LobbyController {
     public void startGame() {
         Platform.runLater(() -> {
             GameController gameController = new GameController(primaryStage, gameState, networkManager);
+
+            // Mevcut oyuncuların avatar bilgilerini GameController'a aktar
+            for (Player player : gameState.getPlayers()) {
+                gameController.setSelectedAvatar(player.getUsername(), player.getAvatarId());
+            }
+
             Scene scene = new Scene(gameController.getView(), 900, 700);
 
             // CSS stillerini ekle

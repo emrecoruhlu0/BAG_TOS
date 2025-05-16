@@ -26,7 +26,9 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class GameController {
@@ -35,6 +37,8 @@ public class GameController {
     private NetworkManager networkManager;
     private Stage primaryStage;
     private ActionManager actionManager;
+    private Map<String, String> selectedAvatars = new HashMap<>();
+
 
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
@@ -98,10 +102,11 @@ public class GameController {
             }
         });
 
-        // Oyuncu seçimi
-        view.getPlayerListView().setOnPlayerSelected(player -> {
-            System.out.println("Oyuncu seçildi: " + player.getUsername());
-        });
+        if (view.getPlayerListView() != null) {
+            view.getPlayerListView().setOnPlayerSelected(player -> {
+                System.out.println("Oyuncu seçildi: " + player.getUsername());
+            });
+        }
 
         // Aksiyonları yapılandır
         setupActionHandlers();
@@ -398,7 +403,7 @@ public class GameController {
 
             updatePhaseDisplay();
             updateRoleDisplay();
-            updatePlayerListDisplay();
+            updatePlayerListDisplay();  // Bu metod aşağıda değiştirilmeli
             updateTimeDisplay();
 
             // Gecikmeli aksiyonları yükleme
@@ -434,7 +439,25 @@ public class GameController {
     }
 
     private void updatePlayerListDisplay() {
-        view.getPlayerListView().updatePlayers(gameState.getPlayers());
+        // Güncel oyuncu listesini al
+        List<Player> currentPlayers = gameState.getPlayers();
+
+        // ÖNEMLİ: Her iki listeyi de güncelle
+        // Eski PlayerListView güncellemesi
+        view.getPlayerListView().updatePlayers(currentPlayers);
+
+        // YENİ: PlayerCircleView güncellemesi ekleyin
+        if (view.getPlayerCircleView() != null) {
+            view.getPlayerCircleView().updatePlayers(currentPlayers);
+        }
+
+        // Debug: Oyuncu isimlerini ve avatarları logla
+        System.out.println("Oyuncu Listesi Güncellendi, Oyuncu Sayısı: " + currentPlayers.size());
+        for (Player player : currentPlayers) {
+            System.out.println("Oyuncu: " + player.getUsername() +
+                    ", Avatar: " + player.getAvatarId() +
+                    ", Hayatta: " + player.isAlive());
+        }
     }
 
     private void updateTimeDisplay() {
@@ -503,8 +526,32 @@ public class GameController {
 
     public void updatePlayerListOnly() {
         Platform.runLater(() -> {
-            // Sadece oyuncu listesini güncelle
-            view.getPlayerListView().updatePlayers(gameState.getPlayers());
+            try {
+                // Güncel oyuncu listesini al
+                List<Player> currentPlayers = gameState.getPlayers();
+
+                System.out.println("ÇEMBERE OYUNCULAR GÖNDERİLİYOR - Toplam: " + currentPlayers.size());
+                for (Player p : currentPlayers) {
+                    System.out.println("  - Oyuncu: " + p.getUsername() +
+                            ", Avatar: " + p.getAvatarId() +
+                            ", Rol: " + p.getRole() +
+                            ", Hayatta: " + p.isAlive());
+                }
+
+                // Her iki görünümü de güncelle
+                view.getPlayerListView().updatePlayers(currentPlayers);
+                view.getPlayerCircleView().updatePlayers(currentPlayers);
+
+                // Güncellemeden sonra çemberin görünürlüğünü ve boyutunu kontrol et
+                double width = view.getPlayerCircleView().getWidth();
+                double height = view.getPlayerCircleView().getHeight();
+                boolean visible = view.getPlayerCircleView().isVisible();
+
+                System.out.println("Çember boyutu: " + width + "x" + height + ", Görünür: " + visible);
+            } catch (Exception e) {
+                System.err.println("Oyuncu listesi güncellenirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
     }
 
@@ -642,6 +689,11 @@ public class GameController {
 
     public GameView getView() {
         return view;
+    }
+
+    public void setSelectedAvatar(String username, String avatarId) {
+        selectedAvatars.put(username, avatarId);
+        System.out.println("Seçilen avatar kaydedildi: " + username + " -> " + avatarId);
     }
 
     public void clearActionPanel() {

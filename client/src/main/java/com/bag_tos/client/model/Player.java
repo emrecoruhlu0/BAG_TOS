@@ -3,10 +3,15 @@ package com.bag_tos.client.model;
 import javafx.beans.property.*;
 
 public class Player {
+    // Mevcut özellikler
     private final StringProperty username = new SimpleStringProperty();
     private final StringProperty role = new SimpleStringProperty();
     private final BooleanProperty alive = new SimpleBooleanProperty(true);
 
+    // Yeni avatar özelliği
+    private final StringProperty avatarId = new SimpleStringProperty("avatar1"); // Varsayılan
+
+    // Yapıcılar
     public Player() {
     }
 
@@ -18,6 +23,25 @@ public class Player {
         this.username.set(username);
         this.role.set(role);
         this.alive.set(alive);
+    }
+
+    public Player(String username, String role, boolean alive, String avatarId) {
+        this.username.set(username);
+        this.role.set(role);
+        this.alive.set(alive);
+        this.avatarId.set(avatarId);
+    }
+
+    public String getAvatarId() {
+        return avatarId.get();
+    }
+
+    public StringProperty avatarIdProperty() {
+        return avatarId;
+    }
+
+    public void setAvatarId(String avatarId) {
+        this.avatarId.set(avatarId);
     }
 
     public String getUsername() {

@@ -109,6 +109,7 @@ public class Game {
         alivePlayers.clear();
         for (ClientHandler player : players) {
             alivePlayers.add(player.getUsername());
+            // Avatar bilgisi korunuyor, değiştirilmiyor
         }
 
         System.out.println("Oyun başlatılıyor - Hayatta olan oyuncular: " + alivePlayers);
@@ -288,6 +289,16 @@ public class Game {
             }
         }
     }
+
+    private String getPlayerAvatarId(String username) {
+        for (ClientHandler player : players) {
+            if (player.getUsername().equals(username)) {
+                return player.getAvatarId();
+            }
+        }
+        return "avatar1"; // Varsayılan avatar
+    }
+
     public Message createGameStateMessage() {
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
@@ -300,7 +311,8 @@ public class Game {
             playerInfoList.add(new PlayerInfo(
                     username,
                     alive,
-                    GameConfig.REVEAL_ROLES_ON_DEATH && !alive ? roleName : "UNKNOWN"
+                    GameConfig.REVEAL_ROLES_ON_DEATH && !alive ? roleName : "UNKNOWN",
+                    player.getAvatarId() // Avatar ID'sini ekleyin
             ));
         }
 
@@ -337,7 +349,6 @@ public class Game {
             phaseChangeMessage.addData("jailedPlayer", jailedPlayer);
         }
 
-
         // Diğer oyun durumu bilgilerini ekle
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
@@ -353,7 +364,10 @@ public class Game {
                 }
             }
 
-            playerInfoList.add(new PlayerInfo(username, alive, roleName));
+            // Avatar bilgisini ekleyin
+            String avatarId = player.getAvatarId();
+
+            playerInfoList.add(new PlayerInfo(username, alive, roleName, avatarId));
         }
         phaseChangeMessage.addData("players", playerInfoList);
 
@@ -378,6 +392,7 @@ public class Game {
 
         System.out.println("Faz değişimi " + sentCount + " oyuncuya gönderildi");
     }
+
     public void broadcastGameState() {
         try {
             Message gameStateMessage = createGameStateMessage();
@@ -1096,6 +1111,9 @@ public class Game {
             killMessage.addData("target", targetUsername);
             killMessage.addData("message", targetUsername + " öldürüldü!");
 
+            // Avatar bilgisini ekleyin
+            killMessage.addData("avatarId", target.getAvatarId());
+
             if (GameConfig.REVEAL_ROLES_ON_DEATH) {
                 Role role = roles.get(targetUsername);
                 if (role != null) {
@@ -1113,9 +1131,6 @@ public class Game {
         }
     }
 
-    /**
-     * Oyların işlenmesi ve sonuçlandırılması
-     */
     private void processVotes() {
         System.out.println("Oylar işleniyor...");
 

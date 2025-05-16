@@ -4,11 +4,14 @@ import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.model.Player;
 import com.bag_tos.client.view.components.ActionPanel;
 import com.bag_tos.client.view.components.ChatPanel;
+import com.bag_tos.client.view.components.PlayerCircleView;
 import com.bag_tos.client.view.components.PlayerListView;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -38,30 +41,81 @@ public class GameView extends BorderPane {
     private ChatPanel jailChatPanel;
     private Tab jailChatTab;
 
+    private ImageView roleAvatarView;
+    private Label roleNameLabel;
+    private PlayerCircleView playerCircleView; // Çember görünümü
+
     public GameView() {
         setPadding(new Insets(10));
         getStyleClass().add("game-view");
 
+        // Rol avatarı için panel - sol üst köşede
+        VBox roleInfoBox = createRoleInfoBox();
+
         // Üst bilgiler
         HBox infoBox = createInfoBox();
 
-        // Oyuncu listesi
-        playerListView = new PlayerListView("Oyuncular");
-        playerListView.setTitle("Oyuncular");
+        // PlayerCircleView - test etmek için sınır ekleyelim
+        playerCircleView = new PlayerCircleView();
+        playerCircleView.setStyle("-fx-border-color: red; -fx-border-width: 2px;"); // Test için görünür kenarlık
+        playerCircleView.setPrefSize(500, 500); // Boyutu açıkça belirtin
+        playerCircleView.setMinSize(300, 300); // Minimum boyut ayarlayın
 
-        // Sohbet alanı
+        // PlayerListView'u oluşturun (artık görünmeyecek olsa bile)
+        playerListView = new PlayerListView(); // Bu satırın eklenmesi önemli
+
+        // Oyuncu çemberi - orta kısımda
+        playerCircleView = new PlayerCircleView();
+
+        // Sohbet alanı - sağ tarafta
         chatTabPane = createChatArea();
 
-        // Aksiyon alanı
+        // Aksiyon alanı - alt kısımda
         actionPanel = new ActionPanel();
 
         // Layout yerleşimi
-        setTop(infoBox);
-        setLeft(playerListView);
-        setCenter(chatTabPane);
+        BorderPane topSection = new BorderPane();
+        topSection.setLeft(roleInfoBox);
+        topSection.setCenter(infoBox);
+
+        setTop(topSection);
+        setCenter(playerCircleView); // Artık playerListView değil, playerCircleView kullanıyoruz
+        setRight(chatTabPane);
         setBottom(actionPanel);
+
+        System.out.println("GameView oluşturuldu. PlayerCircleView merkezde.");
+
+        // PlayerListView'u ekranda göstermek istemiyorsanız, sadece bunu yapın:
+        playerListView.setVisible(false);
+        playerListView.setManaged(false);
     }
 
+
+    private VBox createRoleInfoBox() {
+        VBox roleBox = new VBox(5);
+        roleBox.setPadding(new Insets(10));
+        roleBox.setAlignment(Pos.CENTER);
+        roleBox.getStyleClass().add("role-info-box");
+
+        // Rol avatarı
+        roleAvatarView = new ImageView();
+        roleAvatarView.setFitWidth(50);
+        roleAvatarView.setFitHeight(50);
+        roleAvatarView.setPreserveRatio(true);
+
+        // Avatar arka planı (yuvarlak şekil için)
+        StackPane avatarContainer = new StackPane();
+        avatarContainer.getStyleClass().add("role-avatar-container");
+        avatarContainer.getChildren().add(roleAvatarView);
+
+        // Rol adı etiketi
+        roleNameLabel = new Label("Rol: ???");
+        roleNameLabel.getStyleClass().add("role-name-label");
+
+        roleBox.getChildren().addAll(avatarContainer, roleNameLabel);
+
+        return roleBox;
+    }
 
     private HBox createInfoBox() {
         HBox infoBox = new HBox(20);
@@ -95,6 +149,48 @@ public class GameView extends BorderPane {
         infoBox.getChildren().add(centerBox);
 
         return infoBox;
+    }
+
+    // Rol avatarını güncelleme
+    public void updateRoleAvatar(String roleName) {
+        if (roleName == null || roleName.isEmpty()) {
+            return;
+        }
+
+        roleNameLabel.setText("Rol: " + roleName);
+
+        // Rol avatarını yükle
+        String avatarPath = "/images/role_avatars/unknown.png"; // Varsayılan
+
+        switch (roleName) {
+            case "Mafya":
+                avatarPath = "/images/role_avatars/mafia.png";
+                break;
+            case "Serif":
+                avatarPath = "/images/role_avatars/sheriff.png";
+                break;
+            case "Doktor":
+                avatarPath = "/images/role_avatars/doctor.png";
+                break;
+            case "Gardiyan":
+                avatarPath = "/images/role_avatars/jailor.png";
+                break;
+            case "Jester":
+                avatarPath = "/images/role_avatars/jester.png";
+                break;
+        }
+
+        try {
+            Image roleImage = new Image(getClass().getResourceAsStream(avatarPath));
+            roleAvatarView.setImage(roleImage);
+        } catch (Exception e) {
+            System.err.println("Rol avatarı yüklenirken hata: " + e.getMessage());
+        }
+    }
+
+    // PlayerCircleView erişimcisi
+    public PlayerCircleView getPlayerCircleView() {
+        return playerCircleView;
     }
 
 

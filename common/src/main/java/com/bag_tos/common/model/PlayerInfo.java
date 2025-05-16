@@ -6,17 +6,31 @@ package com.bag_tos.common.model;
 public class PlayerInfo {
     private String username;
     private boolean alive;
-    private String role;  // İstemciye gönderilirken diğer oyuncular için "UNKNOWN" olabilir
+    private String role;
+    private String avatarId;
 
-    // Boş constructor
     public PlayerInfo() {
     }
 
-    // Constructor
     public PlayerInfo(String username, boolean alive, String role) {
         this.username = username;
         this.alive = alive;
         this.role = role;
+    }
+
+    public PlayerInfo(String username, boolean alive, String role, String avatarId) {
+        this.username = username;
+        this.alive = alive;
+        this.role = role;
+        this.avatarId = avatarId;
+    }
+
+    public String getAvatarId() {
+        return avatarId;
+    }
+
+    public void setAvatarId(String avatarId) {
+        this.avatarId = avatarId;
     }
 
     // Getter ve Setter metodları

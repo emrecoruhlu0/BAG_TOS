@@ -404,7 +404,8 @@ public class RoomHandler {
             playerInfoList.add(new PlayerInfo(
                     player.getUsername(),
                     player.isAlive(),
-                    gameStarted ? "UNKNOWN" : null // Oyun başlamadıysa rol bilgisi yok
+                    gameStarted ? "UNKNOWN" : null, // Oyun başlamadıysa rol bilgisi yok
+                    player.getAvatarId() // Avatar bilgisini ekle
             ));
         }
 

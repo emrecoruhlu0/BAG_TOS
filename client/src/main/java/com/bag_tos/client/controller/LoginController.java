@@ -1,6 +1,7 @@
 package com.bag_tos.client.controller;
 
 import com.bag_tos.client.model.GameState;
+import com.bag_tos.client.model.Player;
 import com.bag_tos.client.network.NetworkManager;
 import com.bag_tos.client.network.MessageHandler;
 import com.bag_tos.client.view.LoginView;
@@ -33,6 +34,9 @@ public class LoginController {
         String username = view.getUsernameField().getText().trim();
         String server = view.getServerField().getText().trim();
         String portText = view.getPortField().getText().trim();
+        String avatarId = view.getSelectedAvatarId(); // Avatar bilgisini al
+
+        System.out.println("Login ekranında seçilen avatar: " + username + " -> " + avatarId);
 
         if (username.isEmpty()) {
             view.setStatusText("Lütfen kullanıcı adı giriniz!");
@@ -50,13 +54,19 @@ public class LoginController {
 
                 Platform.runLater(() -> {
                     if (connected) {
-                        // Kullanıcı adını sunucuya gönder (JSON mesajı kullanarak)
+                        // Kullanıcı adını ve avatar ID'sini sunucuya gönder
                         Message authMessage = new Message(MessageType.READY);
                         authMessage.addData("username", username);
+                        authMessage.addData("avatarId", avatarId); // Avatar ID'sini ekle
                         networkManager.sendMessage(authMessage);
 
-                        // Kullanıcı adını GameState'e kaydet - BU SATIRI EKLEYİN
+                        // GameState'e bilgileri kaydet
                         gameState.setCurrentUsername(username);
+
+                        // Oyuncu nesnesini oluştur ve GameState'e ekle
+                        Player currentPlayer = new Player(username);
+                        currentPlayer.setAvatarId(avatarId);
+                        gameState.addOrUpdatePlayer(currentPlayer);
 
                         // Lobi ekranına geçiş yap ve LobbyController oluştur
                         LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
@@ -85,6 +95,7 @@ public class LoginController {
             view.setStatusText("Geçerli bir port numarası giriniz!");
         }
     }
+
     public LoginView getView() {
         return view;
     }

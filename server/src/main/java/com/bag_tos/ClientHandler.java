@@ -25,6 +25,7 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private PrintWriter out;
     private String username;
+    private String avatarId = "avatar1"; // Varsayılan avatar ID'si
     private RoomHandler roomHandler;
     private Game game;
     private boolean isAlive = true;
@@ -97,6 +98,10 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    public String getAvatarId() {
+        return avatarId;
+    }
+
     /**
      * Geçersiz mesaj sayacını artırır ve gerekirse oyuncuyu atar
      */
@@ -110,10 +115,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Kullanıcı doğrulama işlemini gerçekleştirir
-     * @return Doğrulanmış kullanıcı adı, başarısız olursa null
-     */
     private String handleAuthentication() {
         try {
             // Kullanıcı adı isteme mesajı
@@ -122,8 +123,8 @@ public class ClientHandler implements Runnable {
             authRequest.addData("message", "KULLANICI_ADI:");
             sendJsonMessage(authRequest);
 
-            // Kullanıcı adını al ve doğrula
             String proposedUsername = null;
+            String proposedAvatarId = "avatar1"; // Varsayılan değer
             boolean isUsernameValid = false;
 
             while (!isUsernameValid) {
@@ -141,6 +142,13 @@ public class ClientHandler implements Runnable {
                             // Farklı mesaj tiplerini kontrol et
                             if (message.getType() == MessageType.READY) {
                                 proposedUsername = (String) message.getDataValue("username");
+
+                                // Avatar ID'sini al
+                                Object avatarIdObj = message.getDataValue("avatarId");
+                                if (avatarIdObj != null) {
+                                    proposedAvatarId = (String) avatarIdObj;
+                                    System.out.println("Avatar ID alındı: " + proposedAvatarId);
+                                }
                             } else {
                                 // Diğer mesaj tiplerinden username değerini alma
                                 proposedUsername = (String) message.getDataValue("username");
@@ -168,6 +176,9 @@ public class ClientHandler implements Runnable {
                     }
                 } else {
                     isUsernameValid = true;
+                    this.avatarId = proposedAvatarId; // Avatar ID'sini ayarla
+                    System.out.println("Kullanıcı avatarı ayarlandı: " + proposedUsername +
+                            " -> " + proposedAvatarId);
                 }
             }
 
@@ -179,9 +190,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Yeniden bağlanma zaman aşımını kontrol eder
-     */
     private boolean checkReconnectTimeout() {
         long currentTime = System.currentTimeMillis() / 1000; // Saniye cinsinden mevcut zaman
 

@@ -1,5 +1,6 @@
 package com.bag_tos.client.view;
 
+import com.bag_tos.client.view.components.AvatarSelector;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -11,13 +12,18 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 public class LoginView extends VBox {
+    // Mevcut değişkenler
     private TextField usernameField;
     private TextField serverField;
     private TextField portField;
     private Button connectButton;
     private Text statusText;
 
+    // Yeni avatar seçici değişkeni
+    private AvatarSelector avatarSelector;
+
     public LoginView() {
+        // Mevcut yapılandırma
         setPadding(new Insets(20));
         setSpacing(10);
         setAlignment(Pos.CENTER);
@@ -43,12 +49,18 @@ public class LoginView extends VBox {
         Label portLabel = new Label("Port:");
         portField = new TextField("1234");
 
+        // Avatar seçici oluştur
+        Label avatarLabel = new Label("Avatar Seçin:");
+        avatarSelector = new AvatarSelector();
+
         grid.add(usernameLabel, 0, 0);
         grid.add(usernameField, 1, 0);
         grid.add(serverLabel, 0, 1);
         grid.add(serverField, 1, 1);
         grid.add(portLabel, 0, 2);
         grid.add(portField, 1, 2);
+        grid.add(avatarLabel, 0, 3);
+        grid.add(avatarSelector, 1, 3);
 
         // Bağlantı butonu
         connectButton = new Button("Bağlan");
@@ -63,6 +75,10 @@ public class LoginView extends VBox {
         buttonBox.getChildren().add(connectButton);
 
         getChildren().addAll(titleText, grid, buttonBox, statusText);
+    }
+
+    public String getSelectedAvatarId() {
+        return avatarSelector.getSelectedAvatarId();
     }
 
     public TextField getUsernameField() {

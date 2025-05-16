@@ -348,6 +348,19 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 gameController.handleGameEnd(winnerMessage);
             }
 
+            if (message.getDataValue("players") != null) {
+                try {
+                    List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
+                    updatePlayerList(playerInfosRaw);
+                    System.out.println("Oyun durumunda " + playerInfosRaw.size() + " oyuncu güncellendi");
+                } catch (Exception e) {
+                    System.err.println("Oyun durumu sırasında oyuncu listesi güncellenirken hata: " + e.getMessage());
+                }
+            }
+
+            // Sonra UI'ı güncelleyin
+            updateFullUI();
+
         } catch (Exception e) {
             System.err.println("Oyun durumu mesajı işlenirken hata: " + e.getMessage());
             e.printStackTrace();
@@ -798,42 +811,52 @@ public class MessageHandler implements NetworkManager.MessageListener {
             return;
         }
 
-        int aliveCount = 0;
-        int deadCount = 0;
+        System.out.println("MessageHandler.updatePlayerList() - Oyuncu sayısı: " + playerInfosRaw.size());
 
         for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
             String username = (String) playerInfoRaw.get("username");
             Boolean alive = (Boolean) playerInfoRaw.get("alive");
             String role = (String) playerInfoRaw.get("role");
+            String avatarId = (String) playerInfoRaw.get("avatarId");
 
             if (username == null) continue;
+
+            System.out.println("  Oyuncu: " + username + ", Avatar: " + avatarId +
+                    ", Rol: " + role + ", Hayatta: " + alive);
 
             Player player = findOrCreatePlayer(username);
 
             if (alive != null) {
                 player.setAlive(alive);
-                if (alive) aliveCount++; else deadCount++;
             }
 
             if (role != null && !role.equals("UNKNOWN")) {
                 player.setRole(role);
             }
+
+            if (avatarId != null) {
+                player.setAvatarId(avatarId);
+                System.out.println("  -> Avatar atandı: " + username + " -> " + avatarId);
+            }
         }
 
-        System.out.println("Oyuncu listesi güncellendi: " + playerInfosRaw.size() + " oyuncu (Hayatta: " +
-                aliveCount + ", Ölü: " + deadCount + ")");
-
-        // Oyuncu listesi güncellemesinden sonra UI'ı yenile
+        // UI güncelleme
         if (gameController != null || lobbyController != null) {
             Platform.runLater(() -> {
                 if (gameController != null) {
                     gameController.updatePlayerListOnly();
+
+                    // Rol avatarını güncelle (sadece kendi rolünü)
+                    if (gameState.getCurrentRole() != null) {
+                        gameController.getView().updateRoleAvatar(gameState.getCurrentRole());
+                    }
                 } else if (lobbyController != null) {
                     lobbyController.updatePlayerList();
                 }
             });
         }
     }
+
     private Player findOrCreatePlayer(String username) {
         // Mevcut oyuncuları kontrol et
         for (Player p : gameState.getPlayers()) {

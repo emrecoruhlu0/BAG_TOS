@@ -319,3 +319,90 @@
 .lobby-view {
     -fx-background-color: -background-default;
 }
+
+/* Avatar Seçici Stilleri */
+.avatar-toggle-button {
+    -fx-background-color: transparent;
+    -fx-padding: 3px;
+    -fx-border-radius: 20px;
+}
+
+.avatar-toggle-button:selected {
+    -fx-background-color: rgba(63, 81, 181, 0.2);
+    -fx-border-color: -primary-color;
+    -fx-border-width: 2px;
+    -fx-border-radius: 20px;
+}
+
+/* Rol Bilgisi Kutusu */
+.role-info-box {
+    -fx-background-color: rgba(255, 255, 255, 0.8);
+    -fx-background-radius: 10px;
+    -fx-padding: 10px;
+    -fx-border-color: -border-color;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 5, 0, 0, 2);
+}
+
+.role-avatar-container {
+    -fx-background-color: white;
+    -fx-background-radius: 25px;
+    -fx-padding: 2px;
+    -fx-border-color: -border-color;
+    -fx-border-radius: 25px;
+    -fx-border-width: 1px;
+}
+
+.role-name-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: -primary-color;
+}
+
+/* Oyuncu Çember Görünümü */
+.player-circle-view {
+    -fx-background-color: rgba(0, 0, 0, 0.1);
+    -fx-background-radius: 10px;
+    -fx-padding: 10px;
+}
+
+/* Oyuncu Avatar Görünümü */
+.player-avatar-view {
+    -fx-background-color: rgba(255, 255, 255, 0.8);
+    -fx-background-radius: 10px;
+    -fx-padding: 5px;
+    -fx-border-color: -border-color;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 5);
+}
+
+.player-avatar-view:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.9);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 15, 0, 0, 7);
+    -fx-cursor: hand;
+}
+
+.avatar-container {
+    -fx-background-color: white;
+    -fx-background-radius: 40px;
+    -fx-padding: 2px;
+    -fx-border-color: -border-color;
+    -fx-border-radius: 40px;
+    -fx-border-width: 1px;
+}
+
+.player-name-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-primary;
+}
+
+.player-dead .player-name-label {
+    -fx-text-fill: -danger-color;
+    -fx-strikethrough: true;
+}
+
+.player-dead .avatar-container {
+    -fx-border-color: -danger-color;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 0, 0, 0.3), 10, 0, 0, 0);
+}
