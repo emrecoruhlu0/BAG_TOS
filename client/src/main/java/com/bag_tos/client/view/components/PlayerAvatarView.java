@@ -21,10 +21,15 @@ public class PlayerAvatarView extends VBox {
     private final String avatarId; // Değişmez avatar ID
 
 
+// PlayerAvatarView sınıfında yapılması gereken değişiklik
+
     public PlayerAvatarView(Player player) {
         // Önemli: İsim ve avatar ID'yi yapıcıda sabit değişken olarak sakla
         this.username = player.getUsername();
         this.avatarId = player.getAvatarId();
+
+        // Eksik olan atama - bu satır eklenmeli
+        this.player = player;
 
         setAlignment(Pos.CENTER);
         setSpacing(5);
@@ -78,10 +83,7 @@ public class PlayerAvatarView extends VBox {
     }
 
     private void loadAvatar() {
-        String avatarId = player.getAvatarId();
-
-        System.out.println("Avatar yükleme - Oyuncu: " + player.getUsername() + ", Avatar ID: " + avatarId);
-
+        // Saklanan sabit avatar ID'yi kullan, player referansına güvenme
         String avatarPath = "/images/user_avatars/avatar1.png"; // Varsayılan
 
         if (avatarId != null && !avatarId.isEmpty()) {
@@ -111,17 +113,24 @@ public class PlayerAvatarView extends VBox {
         }
     }
 
+    // Ölüm durumu gösterimini iyileştir
     private void updateStyle() {
         if (!player.isAlive()) {
             getStyleClass().add("player-dead");
 
             // Ölü görünümünü uygula
             applyDeadOverlay();
+
+            // İsim etiketini de güncelle
+            nameLabel.getStyleClass().add("player-dead-label");
         } else {
             getStyleClass().remove("player-dead");
 
             // Ölü görünümünü kaldır
             removeDeadOverlay();
+
+            // İsim etiketinden stili kaldır
+            nameLabel.getStyleClass().remove("player-dead-label");
         }
     }
 

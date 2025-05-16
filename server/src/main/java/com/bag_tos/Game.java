@@ -448,6 +448,8 @@ public class Game {
         }
     }
 
+// ClientHandler.java'daki sendAvailableActions metodu için düzeltme
+
     private void sendAvailableActions() {
         System.out.println("sendAvailableActions çağrıldı, mevcut faz: " + currentPhase);
 
@@ -496,13 +498,23 @@ public class Game {
                         availableActions.add(ActionType.EXECUTE.name());
                         System.out.println("Jailor'a EXECUTE aksiyonu eklendi: " + username);
                     } else {
-                        // Jailor hapsetme yapmamış
-                        Message infoMessage = new Message(MessageType.GAME_STATE);
-                        infoMessage.addData("event", "JAILOR_INACTIVE");
-                        infoMessage.addData("message", "Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
-                        player.sendJsonMessage(infoMessage);
+                        // Jailor hapsetme yapmamış - BU BİLGİYİ SADECE BİR KEZ GÖNDER
 
-                        System.out.println("Jailor pasif, bilgi mesajı gönderildi: " + username);
+                        // ÖNEMLİ: Bu kontrol ekle - bu mesajı daha önce gönderip göndermediğimizi kontrol et
+                        Boolean wasNotified = (Boolean) player.getData("jailorInactiveNotified");
+                        if (wasNotified == null || !wasNotified) {
+                            Message infoMessage = new Message(MessageType.GAME_STATE);
+                            infoMessage.addData("event", "JAILOR_INACTIVE");
+                            infoMessage.addData("message", "Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
+                            player.sendJsonMessage(infoMessage);
+
+                            // İşaretleme yap - mesajı gönderdik
+                            player.setData("jailorInactiveNotified", true);
+
+                            System.out.println("Jailor pasif, bilgi mesajı gönderildi: " + username);
+                        } else {
+                            System.out.println("Jailor pasif mesajı zaten gönderilmiş, tekrar gönderilmiyor: " + username);
+                        }
 
                         // Boş bir aksiyonlar listesi gönder, tamamen atlamak yerine
                         // Bu sayede istemci UI'ı güncelleyebilir
@@ -514,6 +526,9 @@ public class Game {
                 if (role.getRoleType() == RoleType.JAILOR) {
                     availableActions.add(ActionType.JAIL.name());
                     System.out.println("Jailor'a JAIL aksiyonu eklendi: " + username);
+
+                    // Gündüz fazı başladığında JAILOR_INACTIVE bildirim bayrağını sıfırla
+                    player.setData("jailorInactiveNotified", false);
                 }
             }
 
@@ -528,6 +543,9 @@ public class Game {
         }
     }
 
+    // Optimizations for improving UI performance in Game.java
+
+    // Replace the startCountdown method with this optimized version
     private void startCountdown() {
         System.out.println("startCountdown çağrıldı, kalan süre: " + remainingSeconds + " saniye, faz: " + currentPhase);
 
@@ -541,10 +559,23 @@ public class Game {
             try {
                 remainingSeconds--;
 
-                // Debug log ekleyin
+                // Optimize UI updates - only send detailed messages at key intervals
                 if (remainingSeconds % 5 == 0 || remainingSeconds <= 5) {
                     System.out.println("Zamanlayıcı: Kalan süre = " + remainingSeconds + " saniye, faz: " + currentPhase);
-                    broadcastGameState();
+
+                    // Send a MINIMAL game state message with ONLY the timer information
+                    Message timeUpdateMessage = new Message(MessageType.GAME_STATE);
+                    timeUpdateMessage.addData("remainingTime", remainingSeconds);
+
+                    // Don't include any other data that would cause a full UI refresh
+                    for (ClientHandler player : players) {
+                        if (alivePlayers.contains(player.getUsername()) || GameConfig.ALLOW_DEAD_CHAT) {
+                            player.sendJsonMessage(timeUpdateMessage);
+                        }
+                    }
+                } else {
+                    // For other seconds, just log for debug purposes
+                    System.out.println("Zamanlayıcı: " + remainingSeconds + "s");
                 }
 
                 if (remainingSeconds <= 0) {

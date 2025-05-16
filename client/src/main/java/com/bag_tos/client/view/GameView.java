@@ -1,7 +1,6 @@
 package com.bag_tos.client.view;
 
 import com.bag_tos.client.model.GameState;
-import com.bag_tos.client.model.Player;
 import com.bag_tos.client.view.components.ActionPanel;
 import com.bag_tos.client.view.components.ChatPanel;
 import com.bag_tos.client.view.components.PlayerCircleView;
@@ -17,8 +16,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
-
-import java.util.List;
 
 
 public class GameView extends BorderPane {
@@ -152,39 +149,50 @@ public class GameView extends BorderPane {
     }
 
     // Rol avatarını güncelleme
+    // GameView sınıfında, updateRoleAvatar metodunu daha sağlam hale getirin
     public void updateRoleAvatar(String roleName) {
         if (roleName == null || roleName.isEmpty()) {
-            return;
+            roleName = "unknown"; // Varsayılan değer
         }
 
         roleNameLabel.setText("Rol: " + roleName);
 
         // Rol avatarını yükle
-        String avatarPath = "/images/role_avatars/unknown.png"; // Varsayılan
+        String avatarPath = "/images/role_avatars/town.png"; // Varsayılan
 
-        switch (roleName) {
-            case "Mafya":
+        switch (roleName.toLowerCase()) {
+            case "mafya":
                 avatarPath = "/images/role_avatars/mafia.png";
                 break;
-            case "Serif":
+            case "serif":
                 avatarPath = "/images/role_avatars/sheriff.png";
                 break;
-            case "Doktor":
+            case "doktor":
                 avatarPath = "/images/role_avatars/doctor.png";
                 break;
-            case "Gardiyan":
+            case "gardiyan":
                 avatarPath = "/images/role_avatars/jailor.png";
                 break;
-            case "Jester":
+            case "jester":
                 avatarPath = "/images/role_avatars/jester.png";
                 break;
         }
 
         try {
             Image roleImage = new Image(getClass().getResourceAsStream(avatarPath));
+            if (roleImage.isError()) {
+                System.err.println("Rol avatarı yüklenemedi: " + avatarPath);
+                roleImage = new Image(getClass().getResourceAsStream("/images/role_avatars/town.png"));
+            }
             roleAvatarView.setImage(roleImage);
         } catch (Exception e) {
             System.err.println("Rol avatarı yüklenirken hata: " + e.getMessage());
+            try {
+                // Varsayılan avatara geri dön
+                roleAvatarView.setImage(new Image(getClass().getResourceAsStream("/images/role_avatars/town.png")));
+            } catch (Exception ex) {
+                System.err.println("Varsayılan avatar da yüklenemedi!");
+            }
         }
     }
 
@@ -296,7 +304,17 @@ public class GameView extends BorderPane {
 
 
     public void updateTime(int seconds) {
+        // Direct text update without any layout changes or other UI elements
         timeText.setText("SÜRE: " + seconds + " sn");
+
+        // Only change color if the time is getting low (optional visual indicator)
+        if (seconds <= 5) {
+            timeText.setFill(Color.RED);
+        } else if (seconds <= 10) {
+            timeText.setFill(Color.ORANGE);
+        } else {
+            timeText.setFill(Color.BLACK);
+        }
     }
 
 

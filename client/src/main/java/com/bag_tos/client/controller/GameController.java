@@ -518,18 +518,27 @@ public class GameController {
     }
 
     public void updateTimeOnly() {
-        Platform.runLater(() -> {
-            // Sadece kalan zamanı güncelle, diğer UI öğeleri aynı kalır
+        // Avoid scheduling UI updates if we're already on the UI thread
+        if (Platform.isFxApplicationThread()) {
+            // Update only the time display component
             view.updateTime(gameState.getRemainingTime());
-        });
+        } else {
+            // Schedule a minimal UI update on the JavaFX thread
+            Platform.runLater(() -> {
+                // Update only the time display component
+                view.updateTime(gameState.getRemainingTime());
+            });
+        }
     }
 
+    // GameController sınıfında, updatePlayerListOnly metodunu değiştir
     public void updatePlayerListOnly() {
         Platform.runLater(() -> {
             try {
                 // Güncel oyuncu listesini al
                 List<Player> currentPlayers = gameState.getPlayers();
 
+                // Oyuncu listesini logla
                 System.out.println("ÇEMBERE OYUNCULAR GÖNDERİLİYOR - Toplam: " + currentPlayers.size());
                 for (Player p : currentPlayers) {
                     System.out.println("  - Oyuncu: " + p.getUsername() +
@@ -538,16 +547,9 @@ public class GameController {
                             ", Hayatta: " + p.isAlive());
                 }
 
-                // Her iki görünümü de güncelle
-                view.getPlayerListView().updatePlayers(currentPlayers);
+                // Her durumda updatePlayers metodunu çağır
                 view.getPlayerCircleView().updatePlayers(currentPlayers);
 
-                // Güncellemeden sonra çemberin görünürlüğünü ve boyutunu kontrol et
-                double width = view.getPlayerCircleView().getWidth();
-                double height = view.getPlayerCircleView().getHeight();
-                boolean visible = view.getPlayerCircleView().isVisible();
-
-                System.out.println("Çember boyutu: " + width + "x" + height + ", Görünür: " + visible);
             } catch (Exception e) {
                 System.err.println("Oyuncu listesi güncellenirken hata: " + e.getMessage());
                 e.printStackTrace();

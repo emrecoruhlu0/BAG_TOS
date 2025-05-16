@@ -247,9 +247,26 @@ public class MessageHandler implements NetworkManager.MessageListener {
 
             // Timestamp bilgisi
             Long timestamp = (Long) message.getDataValue("timestamp");
+
+            // YENI - İlk olarak sadece bir süre güncellemesi olup olmadığını kontrol edelim
+            boolean isOnlyTimeUpdate = false;
+
+            // Eğer remainingTime var ama players, phase, message veya event yoksa, sadece süre güncellemesidir
+            if (message.getDataValue("remainingTime") != null &&
+                    message.getDataValue("players") == null &&
+                    message.getDataValue("phase") == null &&
+                    message.getDataValue("message") == null &&
+                    message.getDataValue("event") == null &&
+                    message.getDataValue("gameOver") == null) {
+
+                isOnlyTimeUpdate = true;
+                System.out.println("Sadece süre güncellemesi algılandı");
+            }
+
             System.out.println("Oyun durumu mesajı alındı" +
                     (skipPhaseUpdate != null ? ", skipPhaseUpdate=" + skipPhaseUpdate : "") +
-                    (timestamp != null ? ", timestamp=" + timestamp : ""));
+                    (timestamp != null ? ", timestamp=" + timestamp : "") +
+                    (isOnlyTimeUpdate ? ", sadece süre güncellemesi" : ""));
 
             // GameState bilgisini al
             GameStateResponse gameStateResponse = null;
@@ -257,8 +274,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 try {
                     String jsonStr = JsonUtils.toJson(message.getDataValue("gameState"));
                     gameStateResponse = JsonUtils.fromJson(jsonStr, GameStateResponse.class);
-                    System.out.println("GameStateResponse alındı: phase=" +
-                            (gameStateResponse != null ? gameStateResponse.getPhase() : "null"));
                 } catch (Exception e) {
                     System.err.println("GameStateResponse işlenirken hata: " + e.getMessage());
                 }
@@ -297,9 +312,11 @@ public class MessageHandler implements NetworkManager.MessageListener {
                     System.out.println("Süre güncelleniyor: " + oldTime + " -> " + time);
                     gameState.setRemainingTime(time);
 
-                    // UI'ı güncelle
-                    if (gameController != null) {
-                        gameController.updateTimeOnly();
+                    // UI'ı güncelle - SADECE süre değişimiyse optimizasyon yap
+                    if (isOnlyTimeUpdate) {
+                        // SADECE süre bileşenini güncelle
+                        updateTimeOnly();
+                        return; // Diğer güncellemeleri atla!
                     }
                 }
             }
@@ -348,18 +365,10 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 gameController.handleGameEnd(winnerMessage);
             }
 
-            if (message.getDataValue("players") != null) {
-                try {
-                    List<Map<String, Object>> playerInfosRaw = (List<Map<String, Object>>) message.getDataValue("players");
-                    updatePlayerList(playerInfosRaw);
-                    System.out.println("Oyun durumunda " + playerInfosRaw.size() + " oyuncu güncellendi");
-                } catch (Exception e) {
-                    System.err.println("Oyun durumu sırasında oyuncu listesi güncellenirken hata: " + e.getMessage());
-                }
+            // Sadece süre güncellemesi değilse tam UI güncellemesi yap
+            if (!isOnlyTimeUpdate) {
+                updateFullUI();
             }
-
-            // Sonra UI'ı güncelleyin
-            updateFullUI();
 
         } catch (Exception e) {
             System.err.println("Oyun durumu mesajı işlenirken hata: " + e.getMessage());
@@ -512,19 +521,31 @@ public class MessageHandler implements NetworkManager.MessageListener {
             case "JAILOR_INACTIVE":
                 // Eğer bu oyuncu jailor ise ve gündüz birini hapsetmedi
                 if (gameState.getCurrentRole().equals("Gardiyan")) {
-                    String messageText = (String) message.getDataValue("message");
-                    if (messageText != null) {
-                        gameState.addSystemMessage(messageText);
-                        if (gameController != null) {
-                            gameController.handleSystemMessage(messageText);
-                        }
-                    }
+                    // Bu mesajın daha önce gösterilip gösterilmediğini kontrol et
+                    Boolean inactive_notified = (Boolean) gameState.getData("jailorInactiveNotified");
 
-                    // Aksiyon panelinde özel bir mesaj göster, ama paneli gizleme
-                    if (gameController != null) {
-                        Platform.runLater(() -> {
-                            gameController.showInactiveJailorMessage();
-                        });
+                    if (inactive_notified == null || !inactive_notified) {
+                        // İlk kez mesaj gösteriliyor, bayrak ekle
+                        gameState.setData("jailorInactiveNotified", true);
+
+                        String messageText = (String) message.getDataValue("message");
+                        if (messageText != null) {
+                            gameState.addSystemMessage(messageText);
+                            if (gameController != null) {
+                                gameController.handleSystemMessage(messageText);
+                            }
+                        }
+
+                        // Aksiyon panelinde özel bir mesaj göster, ama paneli gizleme
+                        if (gameController != null) {
+                            Platform.runLater(() -> {
+                                gameController.showInactiveJailorMessage();
+                            });
+                        }
+
+                        System.out.println("Gardiyan pasif mesajı gösterildi ve işaretlendi");
+                    } else {
+                        System.out.println("Gardiyan pasif mesajı zaten gösterilmiş, tekrarlanmıyor");
                     }
                 }
                 break;
@@ -805,6 +826,7 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
     }
 
+    // MessageHandler'da updatePlayerList metodunu iyileştir
     private void updatePlayerList(List<Map<String, Object>> playerInfosRaw) {
         if (playerInfosRaw == null || playerInfosRaw.isEmpty()) {
             System.out.println("UYARI: updatePlayerList'e boş veya null playerInfos gönderildi!");
@@ -812,6 +834,9 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
 
         System.out.println("MessageHandler.updatePlayerList() - Oyuncu sayısı: " + playerInfosRaw.size());
+
+        // Oyuncu bilgilerini topla
+        List<Player> updatedPlayers = new ArrayList<>();
 
         for (Map<String, Object> playerInfoRaw : playerInfosRaw) {
             String username = (String) playerInfoRaw.get("username");
@@ -838,7 +863,13 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 player.setAvatarId(avatarId);
                 System.out.println("  -> Avatar atandı: " + username + " -> " + avatarId);
             }
+
+            updatedPlayers.add(player);
         }
+
+        // GameState'teki oyuncu listesini güncelle
+        gameState.getPlayers().clear();
+        gameState.getPlayers().addAll(updatedPlayers);
 
         // UI güncelleme
         if (gameController != null || lobbyController != null) {
@@ -856,7 +887,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             });
         }
     }
-
     private Player findOrCreatePlayer(String username) {
         // Mevcut oyuncuları kontrol et
         for (Player p : gameState.getPlayers()) {

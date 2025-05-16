@@ -34,6 +34,10 @@ public class PlayerCircleView extends Pane {
         System.out.println("PlayerCircleView oluşturuldu.");
     }
 
+    public int getPlayerCount() {
+        return playerAvatars.size();
+    }
+
     private void calculatePositions() {
         centerX = getWidth() / 2;
         centerY = getHeight() / 2;
@@ -46,35 +50,48 @@ public class PlayerCircleView extends Pane {
 
     private Map<String, PlayerAvatarView> avatarMap = new HashMap<>();
 
+    // Test kenarlığını kaldır
+// playerCircleView.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+
+// Daha iyi ölçeklendirme için radius hesaplamasını güncelle
+    //radius = Math.min(centerX, centerY) * 0.6; // 0.7 yerine 0.6 kullanılabilir
+
+    // avatarMap kullanımını etkinleştir
     public void updatePlayers(List<Player> players) {
-        // Debug log: Gelen oyuncuları ve avatarlarını göster
-        System.out.println("ÇEMBERE GELEN OYUNCULAR:");
-        for (Player p : players) {
-            System.out.println("  > " + p.getUsername() + " - Avatar: " + p.getAvatarId());
-        }
-
-        // Oyuncuları her zaman aynı sırayla göster
-        List<Player> sortedPlayers = new ArrayList<>(players);
-        Collections.sort(sortedPlayers, (p1, p2) -> p1.getUsername().compareTo(p2.getUsername()));
-
         // Mevcut tüm avatarları temizle
         getChildren().clear();
         playerAvatars.clear();
 
-        // Sıralanmış oyuncuları ekle
-        for (Player player : sortedPlayers) {
-            // Her avatarı oluştururken kullanıcı adı ve avatar ID'yi debug logla
-            System.out.println("  > Avatar oluşturuluyor: " + player.getUsername() +
-                    " - Avatar: " + player.getAvatarId());
+        // Hata kontrolü
+        if (players == null || players.isEmpty()) {
+            System.out.println("UYARI: Boş oyuncu listesi!");
+            return;
+        }
 
-            PlayerAvatarView avatar = new PlayerAvatarView(player);
-            playerAvatars.add(avatar);
-            getChildren().add(avatar);
+        // Debug log: Gelen oyuncuları ve avatarlarını göster
+        System.out.println("ÇEMBERE GELEN OYUNCULAR:");
+        for (Player p : players) {
+            // Null kontrolleri ekle
+            if (p == null) {
+                System.out.println("  > NULL OYUNCU NESNESI!");
+                continue;
+            }
+
+            System.out.println("  > " + p.getUsername() + " - Avatar: " + p.getAvatarId());
+
+            try {
+                PlayerAvatarView avatar = new PlayerAvatarView(p);
+                playerAvatars.add(avatar);
+                getChildren().add(avatar);
+            } catch (Exception e) {
+                System.err.println("Oyuncu avatarı oluşturulurken hata: " + e.getMessage());
+            }
         }
 
         // Pozisyonları güncelle
         updatePlayerPositions();
     }
+
     public void updatePlayerData(List<Player> players) {
         // Önce oyuncu sayısını kontrol edin
         if (players.size() != playerAvatars.size()) {

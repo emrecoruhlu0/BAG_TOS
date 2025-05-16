@@ -34,9 +34,8 @@ public class ClientHandler implements Runnable {
     private int invalidMessageCount = 0;
     private long lastReconnectTime = 0;
 
-    /**
-     * Yeni istemci bağlantısı oluşturur
-     */
+    private Map<String, Object> playerData = new HashMap<>();
+
     public ClientHandler(Socket socket, RoomHandler roomHandler) throws IOException {
         this.socket = socket;
         this.roomHandler = roomHandler;
@@ -673,45 +672,38 @@ public class ClientHandler implements Runnable {
 
     // Getter ve Setter metodları
 
-    /**
-     * Oyuncunun hayatta olup olmadığını ayarlar
-     */
     public void setAlive(boolean alive) {
         isAlive = alive;
     }
 
-    /**
-     * Oyuncunun kullanıcı adını döndürür
-     */
     public String getUsername() {
         return username;
     }
 
-    /**
-     * Oyun referansını ayarlar
-     */
     public void setGame(Game game) {
         this.game = game;
     }
 
-    /**
-     * Oyun referansını döndürür
-     */
     public Game getGame() {
         return game;
     }
 
-    /**
-     * Oyuncunun hayatta olup olmadığını döndürür
-     */
+
     public boolean isAlive() {
         return isAlive;
     }
 
-    /**
-     * Oyuncunun Mafya olup olmadığını kontrol eder
-     */
+
     private boolean isMafia() {
         return game != null && game.getRole(getUsername()) instanceof Mafya;
     }
+
+    public void setData(String key, Object value) {
+        playerData.put(key, value);
+    }
+
+    public Object getData(String key) {
+        return playerData.get(key);
+    }
+
 }
