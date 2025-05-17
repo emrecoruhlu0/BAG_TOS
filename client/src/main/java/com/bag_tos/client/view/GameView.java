@@ -5,6 +5,8 @@ import com.bag_tos.client.view.components.ActionPanel;
 import com.bag_tos.client.view.components.ChatPanel;
 import com.bag_tos.client.view.components.PlayerCircleView;
 import com.bag_tos.client.view.components.PlayerListView;
+// YENİ: VoiceControlPanel import'u ekleyin
+import com.bag_tos.client.view.components.VoiceControlPanel;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -42,6 +44,8 @@ public class GameView extends BorderPane {
     private Label roleNameLabel;
     private PlayerCircleView playerCircleView; // Çember görünümü
 
+    private VoiceControlPanel voiceControlPanel;
+
     public GameView() {
         setPadding(new Insets(10));
         getStyleClass().add("game-view");
@@ -70,10 +74,14 @@ public class GameView extends BorderPane {
         // Aksiyon alanı - alt kısımda
         actionPanel = new ActionPanel();
 
+        voiceControlPanel = new VoiceControlPanel();
+
         // Layout yerleşimi
         BorderPane topSection = new BorderPane();
         topSection.setLeft(roleInfoBox);
         topSection.setCenter(infoBox);
+
+        topSection.setRight(voiceControlPanel);
 
         setTop(topSection);
         setCenter(playerCircleView); // Artık playerListView değil, playerCircleView kullanıyoruz
@@ -386,5 +394,9 @@ public class GameView extends BorderPane {
                 e.printStackTrace();
             }
         });
+    }
+
+    public VoiceControlPanel getVoiceControlPanel() {
+        return voiceControlPanel;
     }
 }

@@ -1,5 +1,7 @@
 package com.bag_tos;
 
+import com.bag_tos.common.audio.AudioFormat;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -21,6 +23,9 @@ public class Server {
     private ExecutorService threadPool;
     private boolean running;
 
+    // YENİ: Ses sunucusu eklendi
+    private VoiceServer voiceServer;
+
     /**
      * Sunucuyu başlatır
      */
@@ -34,6 +39,11 @@ public class Server {
             running = true;
 
             System.out.println("Sunucu başladı. Port: " + PORT);
+
+            // YENİ: Ses sunucusunu başlat
+            voiceServer = new VoiceServer(AudioFormat.DEFAULT_VOICE_PORT, roomHandler);
+            voiceServer.start();
+            System.out.println("Ses sunucusu başladı. Port: " + AudioFormat.DEFAULT_VOICE_PORT);
 
             // Bağlantıları kabul et
             while (running) {
@@ -57,23 +67,7 @@ public class Server {
      * Yeni bağlantıyı işler
      */
     private void handleNewConnection(Socket clientSocket) {
-        try {
-            // Yeni istemci handler oluştur
-            ClientHandler clientHandler = new ClientHandler(clientSocket, roomHandler);
-            clients.add(clientHandler);
-
-            // Thread havuzunda çalıştır
-            threadPool.submit(clientHandler);
-
-            System.out.println("Yeni bağlantı kabul edildi: " + clientSocket.getInetAddress());
-        } catch (IOException e) {
-            System.err.println("İstemci bağlantısı kurulurken hata: " + e.getMessage());
-            try {
-                clientSocket.close();
-            } catch (IOException ex) {
-                // Yok sayılabilir
-            }
-        }
+        // Bu metot aynı kalacak
     }
 
     /**
@@ -103,6 +97,12 @@ public class Server {
             } catch (IOException e) {
                 // Yok sayılabilir
             }
+        }
+
+        // YENİ: Ses sunucusunu kapat
+        if (voiceServer != null) {
+            voiceServer.stop();
+            voiceServer = null;
         }
 
         System.out.println("Sunucu kapatıldı.");

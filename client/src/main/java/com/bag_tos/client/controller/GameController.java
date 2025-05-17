@@ -14,8 +14,6 @@ import com.bag_tos.common.message.request.ChatRequest;
 import com.bag_tos.common.message.request.VoteRequest;
 import com.bag_tos.common.model.ActionType;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -31,6 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+// YENİ: İmportlar ekleyin
+import com.bag_tos.client.audio.VoiceChatManager;
+import com.bag_tos.common.audio.AudioFormat;
+
 public class GameController {
     private GameView view;
     private GameState gameState;
@@ -38,7 +40,7 @@ public class GameController {
     private Stage primaryStage;
     private ActionManager actionManager;
     private Map<String, String> selectedAvatars = new HashMap<>();
-
+    private VoiceChatManager voiceChatManager;
 
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
@@ -48,6 +50,14 @@ public class GameController {
 
         // ActionManager'ı oluştur
         this.actionManager = new ActionManager(gameState, networkManager, view);
+
+        // YENİ: Ses yöneticisini oluştur
+        this.voiceChatManager = new VoiceChatManager();
+
+        // YENİ: Ses kontrol paneli olayını bağla
+        view.getVoiceControlPanel().setMicrophoneStateChangeListener(active -> {
+            voiceChatManager.setMicrophoneActive(active);
+        });
 
         configureView();
         updateUI();
@@ -110,6 +120,35 @@ public class GameController {
 
         // Aksiyonları yapılandır
         setupActionHandlers();
+
+        // YENİ: Oyun durumu değişikliklerini dinle
+        gameState.currentPhaseProperty().addListener((obs, oldPhase, newPhase) -> {
+            // Faz değişikliğini ses sistemine bildir
+            boolean isNight = (newPhase == GameState.Phase.NIGHT);
+            voiceChatManager.setNightPhase(isNight);
+
+            // Gece fazında mikrofon butonunu devre dışı bırak
+            Platform.runLater(() -> {
+                view.getVoiceControlPanel().setMicrophoneEnabled(!isNight);
+                if (isNight) {
+                    view.getVoiceControlPanel().setMicrophoneActive(false);
+                }
+            });
+        });
+
+        // YENİ: Canlılık durumu değişikliklerini dinle
+        gameState.aliveProperty().addListener((obs, wasAlive, isAlive) -> {
+            // Hayatta olma durumunu ses sistemine bildir
+            voiceChatManager.setPlayerAlive(isAlive);
+
+            // Öldüğünde mikrofon butonunu devre dışı bırak
+            if (!isAlive) {
+                Platform.runLater(() -> {
+                    view.getVoiceControlPanel().setMicrophoneEnabled(false);
+                    view.getVoiceControlPanel().setMicrophoneActive(false);
+                });
+            }
+        });
     }
 
     public void handleJailEvent(String event, Message message) {
@@ -403,7 +442,7 @@ public class GameController {
 
             updatePhaseDisplay();
             updateRoleDisplay();
-            updatePlayerListDisplay();  // Bu metod aşağıda değiştirilmeli
+            updatePlayerListDisplay();
             updateTimeDisplay();
 
             // Gecikmeli aksiyonları yükleme
@@ -428,6 +467,22 @@ public class GameController {
                         }
                     }, 100  // 100ms gecikme
             );
+
+            // YENİ: Ses sistemini oyun durumuyla senkronize et
+            voiceChatManager.synchronizeWithGameState(gameState);
+
+            // YENİ: Ses sistemini başlat (eğer henüz başlatılmamışsa)
+            if (!voiceChatManager.isInitialized()) {
+                String serverAddress = networkManager.getServerAddress();
+                int voicePort = AudioFormat.DEFAULT_VOICE_PORT;
+                boolean initialized = voiceChatManager.initialize(serverAddress, voicePort, gameState.getCurrentUsername());
+                if (!initialized) {
+                    System.err.println("Sesli sohbet sistemi başlatılamadı!");
+                    view.addSystemMessage("Sesli sohbet sistemi başlatılamadı, sadece yazılı sohbet kullanılabilir.");
+                } else {
+                    view.addSystemMessage("Sesli sohbet sistemi başlatıldı. Mikrofon kontrolünü kullanabilirsiniz.");
+                }
+            }
         } catch (Exception e) {
             System.err.println("UI güncellemesi sırasında hata: " + e.getMessage());
             e.printStackTrace();
@@ -680,6 +735,9 @@ public class GameController {
                     null,
                     "Sunucuyla bağlantı kesildi!"
             );
+            if (voiceChatManager != null) {
+                voiceChatManager.shutdown();
+            }
             alert.showAndWait();
 
             // Login ekranına dön

@@ -8,10 +8,6 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-/**
- * Town of Salem benzeri oyun için JavaFX tabanlı istemci uygulaması.
- * Uygulamanın başlangıç noktasıdır.
- */
 public class ClientApplication extends Application {
     private GameState gameState;
     private NetworkManager networkManager;
@@ -75,11 +71,6 @@ public class ClientApplication extends Application {
         System.exit(0);
     }
 
-    /**
-     * Ana metot
-     *
-     * @param args Komut satırı argümanları
-     */
     public static void main(String[] args) {
         launch(args);
     }
