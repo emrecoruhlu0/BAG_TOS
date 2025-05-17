@@ -64,6 +64,12 @@ public class RoomHandler {
         // Tüm oyunculara bildir
         broadcastToRoom("LOBBY", gameStartMessage);
 
+        Message phaseChangeMessage = new Message(MessageType.PHASE_CHANGE);
+        phaseChangeMessage.addData("newPhase", GamePhase.NIGHT.name()); // Başlangıç fazını belirt
+        phaseChangeMessage.addData("message", "Gece fazı başladı!");
+        phaseChangeMessage.addData("timestamp", System.currentTimeMillis());
+        broadcastToRoom("LOBBY", phaseChangeMessage);
+
         // Oyun başlatma işlemleri
         for (ClientHandler player : players) {
             player.setGame(game); // Tüm oyunculara Game referansını ata

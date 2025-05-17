@@ -5,13 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
+      <change afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/SimulatedAudioCapture.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceChatManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceChatManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/ActionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/ActionManager.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LobbyController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/LoginController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/VoiceNetworkManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/VoiceNetworkManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/GameView.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerAvatarView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerAvatarView.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerCircleView.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/PlayerCircleView.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/VoiceControlPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/VoiceControlPanel.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

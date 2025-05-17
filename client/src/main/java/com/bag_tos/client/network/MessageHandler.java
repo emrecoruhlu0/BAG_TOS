@@ -385,6 +385,8 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 return;
             }
 
+            System.out.println("Faz değişim mesajı alındı: " + newPhase);
+
             // Timestamp bilgisi
             Long timestamp = (Long) message.getDataValue("timestamp");
             System.out.println("Faz değişim mesajı alındı: " + newPhase +

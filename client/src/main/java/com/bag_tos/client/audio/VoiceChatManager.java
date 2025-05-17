@@ -28,6 +28,10 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
     private final AtomicBoolean nightPhase = new AtomicBoolean(false);
     private final AtomicBoolean playerAlive = new AtomicBoolean(true);
 
+    private SimulatedAudioCapture simulationCapture;
+    private boolean simulationMode = false; // Test için simülasyon modunu etkinleştir
+    private AudioCapture.AudioCaptureListener captureListener;
+
     /**
      * Sesli sohbet yöneticisi oluşturur
      */
@@ -127,6 +131,44 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
         }
     }
 
+    public boolean initializeWithSimulation(String serverAddress, int voicePort, String username) {
+        // Doğrudan parametreleri kullanarak initialize metodunu çağır
+        boolean initialized = initialize(serverAddress, voicePort, username);
+
+        if (initialized && simulationMode) {
+            // Gerçek mikrofon yerine simülasyon kullan
+            if (audioCapture != null) {
+                audioCapture.setMicrophoneActive(false); // Gerçek mikrofonu devre dışı bırak
+            }
+
+            // Simülasyon modunu başlat
+            simulationCapture = new SimulatedAudioCapture(username, this);
+            simulationCapture.startSimulation();
+
+            System.out.println("[SES] Simülasyon modu etkinleştirildi - " + username);
+        }
+
+        return initialized;
+    }
+
+    public void setSimulatedCaptureListener(AudioCapture.AudioCaptureListener listener) {
+        // Simülasyon için kullanılacak dinleyici
+        this.captureListener = listener;
+    }
+
+    public void sendAudioData(byte[] audioData, boolean isSilence) {
+        // Ses verisini ağ üzerinden gönder
+        if (initialized.get() && microphoneActive.get() && networkManager != null) {
+            networkManager.sendVoicePacket(audioData, isSilence);
+
+            // Sadece gerçek ses verisi için detaylı log
+            if (!isSilence) {
+                System.out.println("[SES-NET] Simüle ses paketi gönderildi: " +
+                        audioData.length + " byte");
+            }
+        }
+    }
+
     /**
      * Mikrofon erişim izni kontrolü
      */
@@ -203,6 +245,12 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
         // Mikrofonu kapat
         setMicrophoneActive(false);
 
+        // Simülasyonu kapat
+        if (simulationMode && simulationCapture != null) {
+            simulationCapture.stopSimulation();
+            simulationCapture = null;
+        }
+
         // Ağ bağlantısını kapat
         networkManager.disconnect();
 
@@ -213,14 +261,29 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
         System.out.println("[SES] Sesli sohbet sistemi kapatıldı");
     }
 
+    // Yeni metod: Simülasyon modunu ayarla
+    public void setSimulationMode(boolean enabled) {
+        this.simulationMode = enabled;
+        System.out.println("[SES] Simülasyon modu " + (enabled ? "etkinleştirildi" : "devre dışı bırakıldı"));
+    }
+
+    // Yeni metod: Ses verisi alındığında hoparlörden çalma
+    public void playReceivedAudio(byte[] audioData) {
+        if (audioPlayback != null) {
+            audioPlayback.queueAudio(audioData);
+        }
+    }
+
     /**
      * Mikrofon durumunu ayarlar
      * @param active Aktif ise true
      */
     public void setMicrophoneActive(boolean active) {
         if (microphoneActive.getAndSet(active) != active) {
-            // Durum değişti, mikrofonu güncelle
-            audioCapture.setMicrophoneActive(active);
+            // Simülasyon modu etkinse gerçek mikrofonu kullanma
+            if (!simulationMode) {
+                audioCapture.setMicrophoneActive(active);
+            }
 
             // Sunucuya bildir
             if (active) {

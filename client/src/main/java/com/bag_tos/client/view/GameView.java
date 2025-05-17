@@ -59,14 +59,15 @@ public class GameView extends BorderPane {
         // PlayerCircleView - test etmek için sınır ekleyelim
         playerCircleView = new PlayerCircleView();
         playerCircleView.setStyle("-fx-border-color: red; -fx-border-width: 2px;"); // Test için görünür kenarlık
-        playerCircleView.setPrefSize(500, 500); // Boyutu açıkça belirtin
-        playerCircleView.setMinSize(300, 300); // Minimum boyut ayarlayın
+        playerCircleView.setPrefSize(500, 500);
+        playerCircleView.setMinSize(300, 300);
+        playerCircleView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
         // PlayerListView'u oluşturun (artık görünmeyecek olsa bile)
         playerListView = new PlayerListView(); // Bu satırın eklenmesi önemli
 
         // Oyuncu çemberi - orta kısımda
-        playerCircleView = new PlayerCircleView();
+        //playerCircleView = new PlayerCircleView();
 
         // Sohbet alanı - sağ tarafta
         chatTabPane = createChatArea();
@@ -80,6 +81,8 @@ public class GameView extends BorderPane {
         BorderPane topSection = new BorderPane();
         topSection.setLeft(roleInfoBox);
         topSection.setCenter(infoBox);
+
+        BorderPane.setMargin(playerCircleView, new Insets(10));
 
         topSection.setRight(voiceControlPanel);
 

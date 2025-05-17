@@ -87,26 +87,32 @@ public class VoiceNetworkManager {
      * Paket dinleme döngüsü
      */
     private void listenForPackets() {
-        byte[] buffer = new byte[AudioFormat.BUFFER_SIZE * 2]; // Biraz daha büyük buffer
+        byte[] buffer = new byte[AudioFormat.BUFFER_SIZE * 2];
         int packetCount = 0;
 
         while (connected.get() && !socket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                socket.receive(packet);
+
+                // Paket alma işlemi sırasında timeout olabileceğinden bunu yakala
+                try {
+                    socket.receive(packet);
+                } catch (SocketTimeoutException e) {
+                    // Timeout - normal durum, sadece devam et
+                    continue;
+                }
 
                 // Paket alındı
                 packetCount++;
-                if (packetCount % 10 == 0) { // Her 10 pakette bir log
-                    System.out.println("[SES-NET] " + packetCount + " ses paketi alındı");
-                }
+
+                // Her paketi detaylı logla
+                System.out.println("[SES-NET-DETAY] UDP paketi alındı: " +
+                        packet.getLength() + " byte, Kaynak: " +
+                        packet.getAddress() + ":" + packet.getPort());
 
                 // Paketi işle
                 processReceivedPacket(packet);
 
-            } catch (SocketTimeoutException e) {
-                // Timeout - normal durum, sadece devam et
-                continue;
             } catch (IOException e) {
                 if (connected.get()) {
                     System.err.println("[SES-NET] Paket alınırken hata: " + e.getMessage());
@@ -114,7 +120,7 @@ public class VoiceNetworkManager {
             }
         }
 
-        System.out.println("[SES-NET] Ses paketi dinleyici durduruldu, toplam alınan paket: " + packetCount);
+        System.out.println("[SES-NET] Ses paketi dinleyici durduruldu, toplam alınan: " + packetCount);
     }
 
     /**
@@ -186,6 +192,12 @@ public class VoiceNetworkManager {
 
     private static int sentPacketCount = 0;
 
+    /**
+     * Ses paketi gönderir
+     * @param audioData Ses verisi
+     * @param isSilence Sessizlik paketi mi
+     * @return Gönderim başarılı ise true
+     */
     public boolean sendVoicePacket(byte[] audioData, boolean isSilence) {
         if (!connected.get() || socket == null || socket.isClosed()) {
             return false;
@@ -216,11 +228,11 @@ public class VoiceNetworkManager {
             // Ses verisi varsa loglayalım
             if (!isSilence && audioData != null) {
                 sentPacketCount++;
-                // Her 10 pakette bir detaylı bilgi
-                if (sentPacketCount % 10 == 0) {
-                    System.out.println("[SES-DEBUG] Toplam " + sentPacketCount +
-                            " ses paketi gönderildi. Son paket boyutu: " + audioData.length + " byte.");
-                }
+                // Her paketi detaylı log yap
+                System.out.println("[SES-NET-DETAY] Ses paketi gönderildi #" + sentPacketCount +
+                        " - Kullanıcı: " + username +
+                        ", Boyut: " + audioData.length + " byte" +
+                        ", Paket ID: " + packetCounter.get());
             }
 
             return true;
@@ -230,7 +242,6 @@ public class VoiceNetworkManager {
             return false;
         }
     }
-
     /**
      * Komut gönderir
      * @param command Gönderilecek komut

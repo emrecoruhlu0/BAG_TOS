@@ -70,6 +70,7 @@ public class LoginController {
 
                         // Lobi ekranına geçiş yap ve LobbyController oluştur
                         LobbyController lobbyController = new LobbyController(primaryStage, gameState, networkManager);
+                        lobbyController.setSelectedAvatar(username, avatarId);
 
                         // MessageHandler'ı yapılandır
                         MessageHandler messageHandler = new MessageHandler(lobbyController, gameState);

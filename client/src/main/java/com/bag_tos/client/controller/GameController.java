@@ -52,11 +52,19 @@ public class GameController {
     private int lastTime = -1;
     private int lastPlayerCount = 0;
 
+    private boolean firstUpdate = true;
+
+
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
         this.gameState = gameState;
         this.networkManager = networkManager;
         this.view = new GameView();
+
+        // Başlangıçta görünümü mevcut faza göre ayarla
+        GameState.Phase currentPhase = gameState.getCurrentPhase();
+        view.updatePhase(currentPhase);
+        System.out.println("GameController başlangıç fazı: " + currentPhase);
 
         // ActionManager'ı oluştur
         this.actionManager = new ActionManager(gameState, networkManager, view);
@@ -78,6 +86,10 @@ public class GameController {
 
         configureView();
         updateUI();
+
+        initializeVoiceSystem();  // <--- BU SATIRI EKLEYİN
+
+        initializePlayerCircle();
 
         // MessageHandler'a bu kontrolcüyü bağla
         MessageHandler messageHandler = new MessageHandler(this, gameState);
@@ -167,6 +179,59 @@ public class GameController {
                 });
             }
         });
+    }
+
+    /**
+     * Ses sistemini başlatır
+     */
+    private void initializeVoiceSystem() {
+        try {
+            // Ses sistemini başlat (eğer henüz başlatılmamışsa)
+            if (voiceChatManager == null) {
+                voiceChatManager = new VoiceChatManager();
+            }
+
+            // Simülasyon modunu etkinleştir
+            voiceChatManager.setSimulationMode(false);
+
+            // Sunucu bilgileri
+            String serverAddress = networkManager.getServerAddress(); // Bu metod yoksa değiştirin
+            int voicePort = AudioFormat.DEFAULT_VOICE_PORT;
+            String username = gameState.getCurrentUsername();
+
+            // Eğer getServerAddress() metodu yoksa, NetworkManager'dan bilgileri al
+            if (serverAddress == null) {
+                serverAddress = "localhost"; // Varsayılan değer
+            }
+
+            // Simülasyon modu ile başlat
+            boolean initialized = voiceChatManager.initializeWithSimulation(serverAddress, voicePort, username);
+
+            if (initialized) {
+                System.out.println("[SES] Ses sistemi simülasyon modu ile başarıyla başlatıldı");
+
+                // Ses kontrollerini etkinleştir
+                view.getVoiceControlPanel().setMicrophoneEnabled(true);
+
+                // Faz durumuna göre ayarla
+                boolean isNight = gameState.getCurrentPhase() == GameState.Phase.NIGHT;
+                voiceChatManager.setNightPhase(isNight);
+
+                // Ses bağlantısı kontrolü için timer başlat
+                startVoiceConnectionChecker();
+            } else {
+                System.err.println("[SES] Ses sistemi başlatılamadı!");
+
+                // Ses kontrollerini devre dışı bırak
+                view.getVoiceControlPanel().setMicrophoneEnabled(false);
+            }
+        } catch (Exception e) {
+            System.err.println("[SES] Ses sistemi başlatılırken hata: " + e.getMessage());
+            e.printStackTrace();
+
+            // Ses kontrollerini devre dışı bırak
+            view.getVoiceControlPanel().setMicrophoneEnabled(false);
+        }
     }
 
     public void handleJailEvent(String event, Message message) {
@@ -462,6 +527,29 @@ public class GameController {
 
     private void updateUIInternal() {
         try {
+
+            if (firstUpdate) {
+                // Oyun ekranına ilk geçişte fazı güncelle
+                firstUpdate = false;
+
+                // Mevcut fazı zorla güncelle
+                GameState.Phase currentPhase = gameState.getCurrentPhase();
+                System.out.println("İlk UI güncellemesi: Faz = " + currentPhase);
+
+                // Fazı view'da güncelle
+                view.updatePhase(currentPhase);
+
+                // Eğer lobi fazında değilsek, fazı zorunlu olarak uygula
+                if (currentPhase != GameState.Phase.LOBBY) {
+                    System.out.println("Fazı zorunlu olarak güncelleme: " + currentPhase);
+                    updatePhaseDisplay();
+
+                    // Faz durumuna göre chat ve aksiyon kontrollerini ayarla
+                    updateChatControls();
+                    setupActionHandlers();
+                }
+            }
+
             System.out.println("Tam UI güncellemesi başlatılıyor...");
 
             // Önceki Timer'ı iptal et
@@ -697,8 +785,28 @@ public class GameController {
             // Güncel oyuncu listesini al - güvenli kopya oluştur
             List<Player> currentPlayers = new ArrayList<>(gameState.getPlayers());
 
+            // Eğer liste boşsa erken çık
+            if (currentPlayers.isEmpty()) {
+                System.out.println("UYARI: Oyuncu listesi boş, güncelleme atlanıyor.");
+                return;
+            }
+
+            // Oyuncuların avatarlarını ayarla
+            for (Player player : currentPlayers) {
+                // Eğer avatarId null veya boş ise, seçilen avatarı kullan
+                if (player.getAvatarId() == null || player.getAvatarId().isEmpty()) {
+                    String savedAvatarId = selectedAvatars.get(player.getUsername());
+                    if (savedAvatarId != null) {
+                        player.setAvatarId(savedAvatarId);
+                    } else {
+                        // Varsayılan avatar
+                        player.setAvatarId("avatar1");
+                    }
+                }
+            }
+
             // Oyuncu listesini logla
-            System.out.println("ÇEMBERE OYUNCULAR GÖNDERİLİYOR - Toplam: " + currentPlayers.size());
+            System.out.println("OYUNCU LİSTESİ GÜNCELLENİYOR - Toplam: " + currentPlayers.size());
             for (Player p : currentPlayers) {
                 System.out.println("  - Oyuncu: " + p.getUsername() +
                         ", Avatar: " + p.getAvatarId() +
@@ -708,7 +816,10 @@ public class GameController {
 
             // PlayerCircleView güncellemesi
             if (view.getPlayerCircleView() != null) {
+                System.out.println("PlayerCircleView güncelleniyor...");
                 view.getPlayerCircleView().updatePlayers(currentPlayers);
+            } else {
+                System.out.println("HATA: PlayerCircleView null!");
             }
 
             // Eski liste görünümü hala kullanılıyorsa onu da güncelle
@@ -716,18 +827,29 @@ public class GameController {
                 view.getPlayerListView().updatePlayers(currentPlayers);
             }
 
-            // Konsola güncel oyuncu listesini yazdır
-            System.out.println("Oyuncu Listesi Güncellendi, Oyuncu Sayısı: " + currentPlayers.size());
-            for (Player player : currentPlayers) {
-                System.out.println("Oyuncu: " + player.getUsername() +
-                        ", Avatar: " + player.getAvatarId() +
-                        ", Hayatta: " + player.isAlive());
-            }
-
         } catch (Exception e) {
             System.err.println("Oyuncu listesi güncellenirken hata: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public void initializePlayerCircle() {
+        // İlk kez oyuncu listesini güncelle ve bir süre sonra tekrar dene
+        updatePlayerListOnly();
+
+        // Ekran boyutları tam olarak hesaplanmış olsun diye
+        // kısa bir gecikme sonra tekrar güncelle
+        Platform.runLater(() -> {
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            Platform.runLater(() -> updatePlayerListOnly());
+                        }
+                    },
+                    500 // 500ms sonra tekrar dene
+            );
+        });
     }
 
     private void directMafiaFix() {

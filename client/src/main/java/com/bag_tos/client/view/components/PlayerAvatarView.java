@@ -8,66 +8,77 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import com.bag_tos.client.model.Player;
-
 import java.io.InputStream;
 
 public class PlayerAvatarView extends VBox {
     private ImageView avatarImage;
-    private ImageView deadOverlay; // Ölüm overlay'i için
+    private ImageView deadOverlay;
     private StackPane avatarContainer;
     private Label nameLabel;
     private Player player;
-    private final String username; // Değişmez oyuncu adı
-    private final String avatarId; // Değişmez avatar ID
-
-
-// PlayerAvatarView sınıfında yapılması gereken değişiklik
+    private final String username;
+    private final String avatarId;
 
     public PlayerAvatarView(Player player) {
-        // Önemli: İsim ve avatar ID'yi yapıcıda sabit değişken olarak sakla
-        this.username = player.getUsername();
-        this.avatarId = player.getAvatarId();
+        if (player == null) {
+            throw new IllegalArgumentException("Player cannot be null");
+        }
 
-        // Eksik olan atama - bu satır eklenmeli
         this.player = player;
+        this.username = player.getUsername();
+        this.avatarId = player.getAvatarId() != null ? player.getAvatarId() : "avatar1";
 
         setAlignment(Pos.CENTER);
         setSpacing(5);
         setPrefSize(100, 120);
+        setMinSize(80, 100);
         getStyleClass().add("player-avatar-view");
 
-        // Avatar görüntüsü
+        // Avatar görüntüsü oluştur
         avatarImage = new ImageView();
         avatarImage.setFitWidth(80);
         avatarImage.setFitHeight(80);
         avatarImage.setPreserveRatio(true);
 
-        // Avatar arkaplanı
-        StackPane avatarContainer = new StackPane();
+        // Ölüm overlay'i
+        deadOverlay = new ImageView();
+        deadOverlay.setFitWidth(80);
+        deadOverlay.setFitHeight(80);
+        deadOverlay.setPreserveRatio(true);
+        deadOverlay.setVisible(false);
+
+        // Avatar arkaplan konteynerı
+        avatarContainer = new StackPane();
         avatarContainer.getStyleClass().add("avatar-container");
         avatarContainer.getChildren().add(avatarImage);
 
-        // İsim etiketi - sabit oyuncu ismi kullan
+        // İsim etiketi
         nameLabel = new Label(username);
         nameLabel.getStyleClass().add("player-name-label");
 
+        // Düzen oluştur
         getChildren().addAll(avatarContainer, nameLabel);
+
+        // Tooltip ekle (bilgi balonu)
+        Tooltip tooltip = new Tooltip(username);
+        Tooltip.install(this, tooltip);
 
         // Görüntüyü yükle
         loadAvatar();
 
-        // Debug
-        System.out.println("PlayerAvatarView oluşturuldu - İsim: " + username + ", Avatar: " + avatarId);
+        // Durum güncelle
+        updateStyle();
+
+        System.out.println("PlayerAvatarView oluşturuldu - İsim: " + username +
+                ", Avatar: " + avatarId +
+                ", Boyut: " + getPrefWidth() + "x" + getPrefHeight());
     }
 
     public void updatePlayer(Player updatedPlayer) {
-        // Yeni oyuncu referansını saklayın
-        this.player = updatedPlayer;
+        if (updatedPlayer == null) return;
 
-        // Görünümü güncelleyin
-        nameLabel.setText(updatedPlayer.getUsername());
+        this.player = updatedPlayer;
         updateStyle();
-        loadAvatar();
     }
 
     public Player getPlayer() {
@@ -83,118 +94,90 @@ public class PlayerAvatarView extends VBox {
     }
 
     private void loadAvatar() {
-        // Saklanan sabit avatar ID'yi kullan, player referansına güvenme
-        String avatarPath = "/images/user_avatars/avatar1.png"; // Varsayılan
-
-        if (avatarId != null && !avatarId.isEmpty()) {
-            avatarPath = "/images/user_avatars/" + avatarId + ".png";
-        }
+        String defaultAvatarPath = "/images/user_avatars/avatar1.png";
+        String avatarPath = (avatarId != null && !avatarId.isEmpty())
+                ? "/images/user_avatars/" + avatarId + ".png"
+                : defaultAvatarPath;
 
         try {
-            InputStream is = getClass().getResourceAsStream(avatarPath);
-            if (is == null) {
-                System.err.println("Avatar dosyası bulunamadı: " + avatarPath);
-                // Varsayılan avatar yolunu dene
-                avatarPath = "/images/user_avatars/avatar1.png";
-                is = getClass().getResourceAsStream(avatarPath);
+            // Önce avatar görüntüsünü yüklemeyi dene
+            Image image = loadImageFromResource(avatarPath);
 
-                if (is == null) {
-                    System.err.println("Varsayılan avatar da bulunamadı!");
-                    return;
-                }
+            // Yüklenemezse varsayılan avatarı kullan
+            if (image == null) {
+                System.err.println("Avatar yüklenemedi: " + avatarPath + ", varsayılan kullanılıyor.");
+                image = loadImageFromResource(defaultAvatarPath);
             }
 
-            Image image = new Image(is);
+            // Hala null ise görünür bir hata simgesi kullan
+            if (image == null) {
+                System.err.println("Varsayılan avatar da yüklenemedi!");
+                // 1x1 pixel kırmızı uyarı görüntüsü oluştur
+                image = new Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+            }
+
             avatarImage.setImage(image);
+
+            // Ölüm overlay görüntüsünü yükle
+            Image overlayImage = loadImageFromResource("/images/dead_overlay.png");
+            if (overlayImage != null) {
+                deadOverlay.setImage(overlayImage);
+            }
+
             System.out.println("Avatar başarıyla yüklendi: " + avatarPath);
+
         } catch (Exception e) {
             System.err.println("Avatar yüklenirken hata: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // Ölüm durumu gösterimini iyileştir
-    private void updateStyle() {
-        if (!player.isAlive()) {
-            getStyleClass().add("player-dead");
-
-            // Ölü görünümünü uygula
-            applyDeadOverlay();
-
-            // İsim etiketini de güncelle
-            nameLabel.getStyleClass().add("player-dead-label");
-        } else {
-            getStyleClass().remove("player-dead");
-
-            // Ölü görünümünü kaldır
-            removeDeadOverlay();
-
-            // İsim etiketinden stili kaldır
-            nameLabel.getStyleClass().remove("player-dead-label");
-        }
-    }
-
-    private void applyDeadOverlay() {
+    private Image loadImageFromResource(String resourcePath) {
         try {
-            // Overlay (ölü) görseli yükle
-            if (deadOverlay == null) {
-                deadOverlay = new ImageView(new Image(getClass().getResourceAsStream("/images/dead_overlay.png")));
-                deadOverlay.setFitWidth(80);
-                deadOverlay.setFitHeight(80);
-                deadOverlay.setPreserveRatio(true);
+            InputStream is = getClass().getResourceAsStream(resourcePath);
+            if (is == null) {
+                System.err.println("Kaynak bulunamadı: " + resourcePath);
+                return null;
             }
-
-            // Eğer overlay henüz eklenmemiş ise ekle
-            if (!avatarContainer.getChildren().contains(deadOverlay)) {
-                avatarContainer.getChildren().add(deadOverlay);
-            }
-
-            // Ek olarak avatarı soluklaştır
-            avatarImage.setOpacity(0.6);
+            return new Image(is);
 
         } catch (Exception e) {
-            System.err.println("Ölü overlay'i yüklenirken hata: " + e.getMessage());
-            // Overlay yoksa en azından soluklaştır
-            avatarImage.setOpacity(0.5);
+            System.err.println("Görüntü yüklenirken hata: " + resourcePath + " - " + e.getMessage());
+            return null;
         }
     }
 
-    private void removeDeadOverlay() {
-        // Eğer overlay varsa ve eklenmiş ise kaldır
-        if (deadOverlay != null && avatarContainer.getChildren().contains(deadOverlay)) {
+    private void updateStyle() {
+        boolean isAlive = player != null && player.isAlive();
+
+        if (!isAlive) {
+            // Ölü görünümü
+            getStyleClass().add("player-dead");
+            nameLabel.getStyleClass().add("player-dead-label");
+            avatarImage.setOpacity(0.5);
+
+            // Overlay'i göster
+            if (deadOverlay.getImage() != null) {
+                if (!avatarContainer.getChildren().contains(deadOverlay)) {
+                    avatarContainer.getChildren().add(deadOverlay);
+                }
+                deadOverlay.setVisible(true);
+            }
+
+        } else {
+            // Canlı görünümü
+            getStyleClass().removeAll("player-dead");
+            nameLabel.getStyleClass().removeAll("player-dead-label");
+            avatarImage.setOpacity(1.0);
+
+            // Overlay'i gizle
+            deadOverlay.setVisible(false);
             avatarContainer.getChildren().remove(deadOverlay);
         }
-
-        // Avatarı normal opaklığa getir
-        avatarImage.setOpacity(1.0);
     }
 
-    public void updateStatus(boolean alive) {
-        if (!alive) {
-            getStyleClass().add("player-dead");
-            avatarImage.setOpacity(0.5);
-        } else {
-            getStyleClass().remove("player-dead");
-            avatarImage.setOpacity(1.0);
-        }
-    }
-
-    private void setupMouseEvents() {
-        // Fare tıklaması
-        setOnMouseClicked(e -> {
-            System.out.println("Oyuncu seçildi: " + player.getUsername());
-            // Burada oyuncu seçimi olayını tetikleyebilirsiniz
-        });
-
-        // Fare üzerine gelince bilgi gösterme
-        Tooltip tooltip = new Tooltip();
-        tooltip.setText("Oyuncu: " + player.getUsername() + "\nDurum: " + (player.isAlive() ? "Hayatta" : "Ölü"));
-        Tooltip.install(this, tooltip);
-    }
-
-    public void update() {
-        nameLabel.setText(player.getUsername());
-        updateStyle();
-        loadAvatar();
+    @Override
+    public String toString() {
+        return "PlayerAvatarView{username='" + username + "', avatarId='" + avatarId + "'}";
     }
 }

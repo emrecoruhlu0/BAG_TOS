@@ -161,4 +161,21 @@ public class LobbyController {
     public LobbyView getView() {
         return view;
     }
+
+    public void setSelectedAvatar(String username, String avatarId) {
+        // Avatar bilgisini sakla
+        if (username != null && avatarId != null) {
+            // GameController'a aktarılacak bilgiyi geçici olarak sakla
+            if (gameState != null) {
+                // Oyuncuyu bul ve avatar ID'sini ayarla
+                for (Player player : gameState.getPlayers()) {
+                    if (username.equals(player.getUsername())) {
+                        player.setAvatarId(avatarId);
+                        break;
+                    }
+                }
+            }
+            System.out.println("LobbyController: Avatar ayarlandı - " + username + " -> " + avatarId);
+        }
+    }
 }

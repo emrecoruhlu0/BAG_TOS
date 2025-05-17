@@ -3,7 +3,6 @@ package com.bag_tos.client.view.components;
 import com.bag_tos.client.model.Player;
 import javafx.application.Platform;
 import javafx.scene.layout.Pane;
-
 import java.util.*;
 
 public class PlayerCircleView extends Pane {
@@ -11,104 +10,144 @@ public class PlayerCircleView extends Pane {
     private double centerX;
     private double centerY;
     private double radius;
+    private List<Player> lastPlayerList = null;
+    private boolean isLayoutInitialized = false;
 
     public PlayerCircleView() {
         getStyleClass().add("player-circle-view");
 
-        // Arka plan rengini ayarlayın
-        setStyle("-fx-background-color: rgba(200, 200, 200, 0.2);"); // Hafif gri arka plan
+        // Belirgin bir arka plan rengi ekle (debug için)
+        setStyle("-fx-background-color: rgba(200, 200, 200, 0.2); -fx-border-color: #cccccc; -fx-border-width: 1px;");
 
-        // Minimum boyutu ayarlayın
+        // Minimum boyut ayarla
         setMinSize(300, 300);
         setPrefSize(500, 500);
 
-        // Boyut değişikliklerini dinleyin
+        // Boyut değişikliğini dinle
         widthProperty().addListener((obs, oldVal, newVal) -> {
-            System.out.println("PlayerCircleView genişliği değişti: " + oldVal + " -> " + newVal);
-            calculatePositions();
+            if (newVal.doubleValue() > 0) {
+                recalculateLayout();
+            }
         });
+
         heightProperty().addListener((obs, oldVal, newVal) -> {
-            System.out.println("PlayerCircleView yüksekliği değişti: " + oldVal + " -> " + newVal);
-            calculatePositions();
+            if (newVal.doubleValue() > 0) {
+                recalculateLayout();
+            }
         });
 
-        System.out.println("PlayerCircleView oluşturuldu.");
+        // Parent'a eklendiğinde
+        parentProperty().addListener((obs, oldParent, newParent) -> {
+            if (newParent != null) {
+                // Parent eklendiğinde bir tick sonra layout'u hesapla
+                Platform.runLater(this::recalculateLayout);
+            }
+        });
+
+        System.out.println("PlayerCircleView oluşturuldu: " + getWidth() + "x" + getHeight());
     }
 
-    public int getPlayerCount() {
-        return playerAvatars.size();
+    @Override
+    public void layoutChildren() {
+        super.layoutChildren();
+
+        if (!isLayoutInitialized && getWidth() > 0 && getHeight() > 0) {
+            recalculateLayout();
+            isLayoutInitialized = true;
+        }
     }
 
-    private void calculatePositions() {
-        centerX = getWidth() / 2;
-        centerY = getHeight() / 2;
+    private void recalculateLayout() {
+        double width = getWidth();
+        double height = getHeight();
+
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        centerX = width / 2;
+        centerY = height / 2;
         radius = Math.min(centerX, centerY) * 0.7;
 
-        System.out.println("Yeni çember merkezi: (" + centerX + ", " + centerY + "), radius: " + radius);
+        System.out.println("Çember yeniden hesaplandı - Boyut: " + width + "x" + height +
+                ", Merkez: (" + centerX + ", " + centerY + "), Yarıçap: " + radius);
 
         updatePlayerPositions();
     }
 
-    private Map<String, PlayerAvatarView> avatarMap = new HashMap<>();
-
-    // Mevcut sorunlu metod (yaklaşık satır 73 civarında)
-// PlayerCircleView.java - Düzeltilmiş versiyon
-
     public void updatePlayers(List<Player> players) {
-        // Mevcut oyuncularla yeni oyuncuları karşılaştır
+        // Boş liste kontrolü
         if (players == null || players.isEmpty()) {
-            System.out.println("UYARI: Boş oyuncu listesi!");
+            System.out.println("UYARI: PlayerCircleView.updatePlayers - Boş oyuncu listesi!");
             Platform.runLater(() -> {
-                playerAvatars.clear();
                 getChildren().clear();
+                playerAvatars.clear();
+                lastPlayerList = new ArrayList<>();
             });
             return;
         }
 
-        // Oyuncu listesini kopyala
-        final List<Player> playersCopy = new ArrayList<>(players);
+        // Değişikliği tam olarak algılamak için oyuncuları derin kopyala
+        final List<Player> playersCopy = deepCopyPlayers(players);
 
-        // Optimizasyon: Oyuncu listesi değişmemiş ise güncelleme yapma
+        // Değişiklik olup olmadığını kontrol et
         if (!hasPlayerListChanged(playersCopy)) {
-            System.out.println("Oyuncu listesi değişmemiş, güncelleme atlanıyor.");
+            System.out.println("PlayerCircleView - Oyuncu listesi değişmemiş, güncelleme atlanıyor.");
             return;
         }
 
-        // Yeni avatar listesi oluştur
-        List<PlayerAvatarView> newAvatars = new ArrayList<>();
-
-        System.out.println("ÇEMBERE GELEN OYUNCULAR:");
-        for (Player p : playersCopy) {
-            if (p == null) {
-                System.out.println("  > NULL OYUNCU NESNESI!");
-                continue;
-            }
-
-            System.out.println("  > " + p.getUsername() + " - Avatar: " + p.getAvatarId());
-
-            try {
-                PlayerAvatarView avatar = new PlayerAvatarView(p);
-                newAvatars.add(avatar);
-            } catch (Exception e) {
-                System.err.println("Oyuncu avatarı oluşturulurken hata: " + e.getMessage());
-            }
-        }
+        System.out.println("PlayerCircleView.updatePlayers - " + playersCopy.size() + " oyuncu güncelleniyor");
 
         Platform.runLater(() -> {
             try {
+                // Tüm çocukları ve avatarları temizle
                 getChildren().clear();
                 playerAvatars.clear();
-                playerAvatars.addAll(newAvatars);
-                getChildren().addAll(newAvatars);
+
+                // Her oyuncu için avatar oluştur
+                for (Player player : playersCopy) {
+                    try {
+                        PlayerAvatarView avatarView = new PlayerAvatarView(player);
+                        playerAvatars.add(avatarView);
+                        getChildren().add(avatarView);
+
+                        System.out.println("Avatar eklendi: " + player.getUsername() +
+                                ", Avatar ID: " + player.getAvatarId() +
+                                ", Hayatta: " + player.isAlive());
+                    } catch (Exception e) {
+                        System.err.println("Avatar oluşturulurken hata: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+
+                // Pozisyonları hesapla
                 updatePlayerPositions();
 
-                // Mevcut oyuncu listesini kaydet (optimizasyon için)
-                lastPlayerList = new ArrayList<>(playersCopy);
+                // Son listeyi güncelle
+                lastPlayerList = playersCopy;
+
+                System.out.println("PlayerCircleView - Toplam " + playerAvatars.size() +
+                        " avatar eklendi, çemberde görüntüleniyor.");
+
             } catch (Exception e) {
-                System.err.println("Oyuncu çemberi güncellenirken hata: " + e.getMessage());
+                System.err.println("PlayerCircleView.updatePlayers - Hata: " + e.getMessage());
                 e.printStackTrace();
             }
         });
+    }
+
+    private List<Player> deepCopyPlayers(List<Player> players) {
+        List<Player> result = new ArrayList<>();
+        for (Player player : players) {
+            Player copy = new Player(
+                    player.getUsername(),
+                    player.getRole(),
+                    player.isAlive(),
+                    player.getAvatarId()
+            );
+            result.add(copy);
+        }
+        return result;
     }
 
     private boolean hasPlayerListChanged(List<Player> newPlayers) {
@@ -116,65 +155,53 @@ public class PlayerCircleView extends Pane {
             return true;
         }
 
-        // Basit karşılaştırma - oyuncu adları ve durumları değişmiş mi?
         for (int i = 0; i < lastPlayerList.size(); i++) {
             Player oldPlayer = lastPlayerList.get(i);
             Player newPlayer = newPlayers.get(i);
 
-            if (!oldPlayer.getUsername().equals(newPlayer.getUsername()) ||
+            if (!Objects.equals(oldPlayer.getUsername(), newPlayer.getUsername()) ||
                     oldPlayer.isAlive() != newPlayer.isAlive() ||
-                    !oldPlayer.getAvatarId().equals(newPlayer.getAvatarId())) {
+                    !Objects.equals(oldPlayer.getAvatarId(), newPlayer.getAvatarId())) {
                 return true;
             }
         }
-
         return false;
     }
 
-    // Sınıfa eklenecek değişken
-    private List<Player> lastPlayerList = null;
-
-    public void updatePlayerData(List<Player> players) {
-        // Önce oyuncu sayısını kontrol edin
-        if (players.size() != playerAvatars.size()) {
-            // Oyuncu sayısı değiştiyse tüm görünümü yeniden oluşturun
-            updatePlayers(players);
+    private void updatePlayerPositions() {
+        if (playerAvatars.isEmpty() || centerX <= 0 || centerY <= 0 || radius <= 0) {
             return;
         }
-
-        // Aynı sayıda oyuncu varsa, sadece verileri güncelleyin
-        for (int i = 0; i < players.size(); i++) {
-            Player player = players.get(i);
-            PlayerAvatarView avatar = playerAvatars.get(i);
-
-            // Oyuncu bilgilerini güncelle
-            String username = player.getUsername();
-            boolean alive = player.isAlive();
-            String avatarId = player.getAvatarId();
-
-            // Avatar görünümünü güncelle
-            avatar.updatePlayer(player);
-        }
-    }
-
-
-    private void updatePlayerPositions() {
-        if (playerAvatars.isEmpty()) return;
 
         int numPlayers = playerAvatars.size();
         double angleStep = 2 * Math.PI / numPlayers;
         double startAngle = -Math.PI / 2; // Üstten başla
 
+        System.out.println("Oyuncular konumlandırılıyor - Oyuncu sayısı: " + numPlayers +
+                ", Merkez: (" + centerX + "," + centerY + "), Yarıçap: " + radius);
+
         for (int i = 0; i < numPlayers; i++) {
             PlayerAvatarView avatar = playerAvatars.get(i);
 
-            // Sabit başlangıç açısı kullan, böylece pozisyon tutarlı olur
-            double angle = startAngle + i * angleStep;
-            double x = centerX + radius * Math.cos(angle) - avatar.getPrefWidth() / 2;
-            double y = centerY + radius * Math.sin(angle) - avatar.getPrefHeight() / 2;
+            // Avatarın görünür boyutlarını al
+            double avatarWidth = avatar.getPrefWidth();
+            double avatarHeight = avatar.getPrefHeight();
 
+            if (avatarWidth <= 0) avatarWidth = 100; // Varsayılan değerler
+            if (avatarHeight <= 0) avatarHeight = 120;
+
+            // Çember üzerinde konumlandır
+            double angle = startAngle + i * angleStep;
+            double x = centerX + radius * Math.cos(angle) - avatarWidth / 2;
+            double y = centerY + radius * Math.sin(angle) - avatarHeight / 2;
+
+            // Pozisyonu ayarla
             avatar.setLayoutX(x);
             avatar.setLayoutY(y);
+
+            // Debug bilgisi
+            System.out.println("Avatar konumlandırıldı - " + avatar.getUsername() +
+                    " -> (" + x + "," + y + ")");
         }
     }
 }
