@@ -32,22 +32,36 @@ public class AudioCapture implements Runnable {
      */
     public void start() throws LineUnavailableException {
         if (running.get()) {
+            System.out.println("[KAYIT] Ses kaydı zaten çalışıyor, tekrar başlatılmadı.");
             return; // Zaten çalışıyor
         }
 
-        // Mikrofon aç
-        javax.sound.sampled.AudioFormat format = AudioFormat.getAudioFormat();
-        microphone = AudioSystem.getTargetDataLine(format);
-        microphone.open(format);
-        microphone.start();
+        try {
+            // Mikrofon aç
+            javax.sound.sampled.AudioFormat format = AudioFormat.getAudioFormat();
 
-        // Kaydı başlat
-        running.set(true);
-        captureThread = new Thread(this);
-        captureThread.setDaemon(true);
-        captureThread.start();
+            System.out.println("[KAYIT] Mikrofon açılıyor: " + format);
+            System.out.println("[KAYIT] Örnek oranı: " + format.getSampleRate() + "Hz");
+            System.out.println("[KAYIT] Örnek boyutu: " + format.getSampleSizeInBits() + " bit");
+            System.out.println("[KAYIT] Kanal sayısı: " + format.getChannels());
 
-        System.out.println("Ses kaydı başlatıldı");
+            microphone = AudioSystem.getTargetDataLine(format);
+            microphone.open(format);
+            microphone.start();
+
+            // Kaydı başlat
+            running.set(true);
+            captureThread = new Thread(this);
+            captureThread.setDaemon(true);
+            captureThread.setName("AudioCaptureThread");
+            captureThread.start();
+
+            System.out.println("[KAYIT] Ses kaydı başlatıldı");
+        } catch (LineUnavailableException e) {
+            System.err.println("[KAYIT] Mikrofon açılamadı: " + e.getMessage());
+            running.set(false);
+            throw e;
+        }
     }
 
     /**
@@ -55,12 +69,18 @@ public class AudioCapture implements Runnable {
      */
     public void stop() {
         if (!running.getAndSet(false)) {
+            System.out.println("[KAYIT] Ses kaydı zaten durdurulmuş.");
             return; // Zaten durmuş
         }
 
         // Thread'i durdur
         if (captureThread != null) {
             captureThread.interrupt();
+            try {
+                captureThread.join(1000); // En fazla 1 saniye bekle
+            } catch (InterruptedException e) {
+                // Yok sayılabilir
+            }
             captureThread = null;
         }
 
@@ -71,7 +91,7 @@ public class AudioCapture implements Runnable {
             microphone = null;
         }
 
-        System.out.println("Ses kaydı durduruldu");
+        System.out.println("[KAYIT] Ses kaydı durduruldu");
     }
 
     /**
@@ -79,7 +99,10 @@ public class AudioCapture implements Runnable {
      * @param active Aktif ise true
      */
     public void setMicrophoneActive(boolean active) {
-        microphoneActive.set(active);
+        boolean changed = microphoneActive.getAndSet(active) != active;
+        if (changed) {
+            System.out.println("[KAYIT] Mikrofon " + (active ? "etkinleştirildi" : "devre dışı bırakıldı"));
+        }
     }
 
     /**
@@ -93,6 +116,10 @@ public class AudioCapture implements Runnable {
     @Override
     public void run() {
         byte[] buffer = new byte[AudioFormat.PACKET_SIZE];
+        int captureCount = 0;
+        long startTime = System.currentTimeMillis();
+
+        System.out.println("[KAYIT] Ses kayıt döngüsü başladı");
 
         while (running.get()) {
             try {
@@ -104,9 +131,27 @@ public class AudioCapture implements Runnable {
                 }
 
                 // Ses verisini oku
-                int bytesRead = microphone.read(buffer, 0, buffer.length);
+                int bytesRead = 0;
+                if (microphone != null && microphone.isOpen()) {
+                    bytesRead = microphone.read(buffer, 0, buffer.length);
+                } else {
+                    System.err.println("[KAYIT] Mikrofonun açık olmadığı tespit edildi, bekleniyor...");
+                    Thread.sleep(500);
+                    continue;
+                }
 
                 if (bytesRead > 0) {
+                    captureCount++;
+
+                    // Her 100 kayıtta bir log
+                    if (captureCount % 100 == 0) {
+                        long currentTime = System.currentTimeMillis();
+                        double elapsedSec = (currentTime - startTime) / 1000.0;
+                        double captureRate = captureCount / elapsedSec;
+                        System.out.println("[KAYIT] " + captureCount + " ses paketi kaydedildi, " +
+                                String.format("%.2f", captureRate) + " paket/saniye");
+                    }
+
                     // Konuşma var mı kontrol et
                     boolean isSilence = voiceDetector.isSilence(buffer, bytesRead);
 
@@ -125,10 +170,20 @@ public class AudioCapture implements Runnable {
                 break;
             } catch (Exception e) {
                 if (running.get()) {
-                    System.err.println("Ses kaydı sırasında hata: " + e.getMessage());
+                    System.err.println("[KAYIT] Ses kaydı sırasında hata: " + e.getMessage());
+                    e.printStackTrace();
+
+                    // Kısa bir beklemeden sonra devam et
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie) {
+                        break;
+                    }
                 }
             }
         }
+
+        System.out.println("[KAYIT] Ses kayıt döngüsü sona erdi, toplam " + captureCount + " paket kaydedildi");
     }
 
     /**

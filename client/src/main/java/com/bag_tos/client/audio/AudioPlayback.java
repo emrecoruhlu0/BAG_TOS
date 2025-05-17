@@ -33,22 +33,36 @@ public class AudioPlayback implements Runnable {
      */
     public void start() throws LineUnavailableException {
         if (running.get()) {
+            System.out.println("[ÇALMA] Ses çalma zaten çalışıyor, tekrar başlatılmadı.");
             return; // Zaten çalışıyor
         }
 
-        // Hoparlör aç
-        javax.sound.sampled.AudioFormat format = AudioFormat.getAudioFormat();
-        speakers = AudioSystem.getSourceDataLine(format);
-        speakers.open(format);
-        speakers.start();
+        try {
+            // Hoparlör aç
+            javax.sound.sampled.AudioFormat format = AudioFormat.getAudioFormat();
 
-        // Çalmayı başlat
-        running.set(true);
-        playbackThread = new Thread(this);
-        playbackThread.setDaemon(true);
-        playbackThread.start();
+            System.out.println("[ÇALMA] Hoparlör açılıyor: " + format);
+            System.out.println("[ÇALMA] Örnek oranı: " + format.getSampleRate() + "Hz");
+            System.out.println("[ÇALMA] Örnek boyutu: " + format.getSampleSizeInBits() + " bit");
+            System.out.println("[ÇALMA] Kanal sayısı: " + format.getChannels());
 
-        System.out.println("Ses çalma başlatıldı");
+            speakers = AudioSystem.getSourceDataLine(format);
+            speakers.open(format);
+            speakers.start();
+
+            // Çalmayı başlat
+            running.set(true);
+            playbackThread = new Thread(this);
+            playbackThread.setDaemon(true);
+            playbackThread.setName("AudioPlaybackThread");
+            playbackThread.start();
+
+            System.out.println("[ÇALMA] Ses çalma başlatıldı");
+        } catch (LineUnavailableException e) {
+            System.err.println("[ÇALMA] Hoparlör açılamadı: " + e.getMessage());
+            running.set(false);
+            throw e;
+        }
     }
 
     /**
@@ -56,12 +70,18 @@ public class AudioPlayback implements Runnable {
      */
     public void stop() {
         if (!running.getAndSet(false)) {
+            System.out.println("[ÇALMA] Ses çalma zaten durdurulmuş.");
             return; // Zaten durmuş
         }
 
         // Thread'i durdur
         if (playbackThread != null) {
             playbackThread.interrupt();
+            try {
+                playbackThread.join(1000); // En fazla 1 saniye bekle
+            } catch (InterruptedException e) {
+                // Yok sayılabilir
+            }
             playbackThread = null;
         }
 
@@ -74,9 +94,10 @@ public class AudioPlayback implements Runnable {
         }
 
         // Kuyruğu temizle
+        int discardedPackets = audioQueue.size();
         audioQueue.clear();
 
-        System.out.println("Ses çalma durduruldu");
+        System.out.println("[ÇALMA] Ses çalma durduruldu, " + discardedPackets + " paket atıldı");
     }
 
     /**
@@ -85,20 +106,42 @@ public class AudioPlayback implements Runnable {
      */
     public void queueAudio(byte[] audioData) {
         if (running.get() && !audioQueue.offer(audioData)) {
-            System.err.println("Ses kuyruğu dolu, paket atıldı");
+            System.err.println("[ÇALMA] Ses kuyruğu dolu, paket atıldı");
         }
     }
 
     @Override
     public void run() {
+        byte[] buffer = new byte[AudioFormat.PACKET_SIZE];
+        int playCount = 0;
+        long startTime = System.currentTimeMillis();
+
+        System.out.println("[ÇALMA] Ses çalma döngüsü başladı");
+
         while (running.get()) {
             try {
                 // Kuyruktan veri al
                 byte[] audioData = audioQueue.poll(100, TimeUnit.MILLISECONDS);
 
                 if (audioData != null) {
+                    playCount++;
+
+                    // Her 100 çalmada bir log
+                    if (playCount % 100 == 0) {
+                        long currentTime = System.currentTimeMillis();
+                        double elapsedSec = (currentTime - startTime) / 1000.0;
+                        double playRate = playCount / elapsedSec;
+                        System.out.println("[ÇALMA] " + playCount + " ses paketi çalındı, " +
+                                String.format("%.2f", playRate) + " paket/saniye, kuyrukta " +
+                                audioQueue.size() + " paket kaldı");
+                    }
+
                     // Ses verisini çal
-                    speakers.write(audioData, 0, audioData.length);
+                    if (speakers != null && speakers.isOpen()) {
+                        speakers.write(audioData, 0, audioData.length);
+                    } else {
+                        System.err.println("[ÇALMA] Hoparlör açık değil, ses çalınamıyor");
+                    }
                 }
 
             } catch (InterruptedException e) {
@@ -106,9 +149,19 @@ public class AudioPlayback implements Runnable {
                 break;
             } catch (Exception e) {
                 if (running.get()) {
-                    System.err.println("Ses çalma sırasında hata: " + e.getMessage());
+                    System.err.println("[ÇALMA] Ses çalma sırasında hata: " + e.getMessage());
+                    e.printStackTrace();
+
+                    // Kısa bir beklemeden sonra devam et
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie) {
+                        break;
+                    }
                 }
             }
         }
+
+        System.out.println("[ÇALMA] Ses çalma döngüsü sona erdi, toplam " + playCount + " paket çalındı");
     }
 }

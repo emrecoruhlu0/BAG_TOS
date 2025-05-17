@@ -52,20 +52,21 @@ public class VoiceNetworkManager {
             // UDP soketi oluştur
             socket = new DatagramSocket();
 
+            // Socket timeout ayarla - 5 saniye
+            socket.setSoTimeout(5000);
+
             // Bağlantı durumunu güncelle
             connected.set(true);
 
             // Paket dinleme thread'i başlat
             startListening();
 
-            // LOBBY odasına katılma mesajı gönder
-            sendJoinCommand("LOBBY");
-
-            System.out.println("Ses sunucusuna bağlandı: " + serverAddress + ":" + serverPort);
+            System.out.println("[SES-NET] Ses sunucusuna bağlantı hazır: " + serverAddress + ":" + serverPort);
             return true;
 
         } catch (SocketException e) {
-            System.err.println("Ses bağlantısı kurulurken hata: " + e.getMessage());
+            System.err.println("[SES-NET] Ses bağlantısı kurulurken hata: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -76,29 +77,44 @@ public class VoiceNetworkManager {
     private void startListening() {
         Thread listenerThread = new Thread(this::listenForPackets);
         listenerThread.setDaemon(true);
+        listenerThread.setName("VoicePacketListener");
         listenerThread.start();
+
+        System.out.println("[SES-NET] Ses paketi dinleyici başlatıldı");
     }
 
     /**
      * Paket dinleme döngüsü
      */
     private void listenForPackets() {
-        byte[] buffer = new byte[AudioFormat.BUFFER_SIZE];
+        byte[] buffer = new byte[AudioFormat.BUFFER_SIZE * 2]; // Biraz daha büyük buffer
+        int packetCount = 0;
 
         while (connected.get() && !socket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
 
+                // Paket alındı
+                packetCount++;
+                if (packetCount % 10 == 0) { // Her 10 pakette bir log
+                    System.out.println("[SES-NET] " + packetCount + " ses paketi alındı");
+                }
+
                 // Paketi işle
                 processReceivedPacket(packet);
 
+            } catch (SocketTimeoutException e) {
+                // Timeout - normal durum, sadece devam et
+                continue;
             } catch (IOException e) {
                 if (connected.get()) {
-                    System.err.println("Paket alınırken hata: " + e.getMessage());
+                    System.err.println("[SES-NET] Paket alınırken hata: " + e.getMessage());
                 }
             }
         }
+
+        System.out.println("[SES-NET] Ses paketi dinleyici durduruldu, toplam alınan paket: " + packetCount);
     }
 
     /**
@@ -117,6 +133,12 @@ public class VoiceNetworkManager {
                 // Ses paketi
                 VoicePacket voicePacket = (VoicePacket) receivedObject;
 
+                // Debug - detaylı log
+                if (!voicePacket.isSilence()) {
+                    System.out.println("[SES-NET] Ses paketi alındı: " + voicePacket.getUsername() +
+                            " kullanıcısından, " + voicePacket.getAudioData().length + " byte");
+                }
+
                 // Dinleyici varsa bildirimi gönder
                 if (packetListener != null) {
                     packetListener.onVoicePacketReceived(voicePacket);
@@ -125,6 +147,9 @@ public class VoiceNetworkManager {
             } else if (receivedObject instanceof VoiceCommand) {
                 // Komut paketi
                 VoiceCommand command = (VoiceCommand) receivedObject;
+
+                System.out.println("[SES-NET] Komut paketi alındı: " + command.getType() +
+                        " - Gönderen: " + command.getUsername());
 
                 // Dinleyici varsa bildirimi gönder
                 if (commandListener != null) {
@@ -138,7 +163,7 @@ public class VoiceNetworkManager {
             }
 
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Paket işlenirken hata: " + e.getMessage());
+            System.err.println("[SES-NET] Paket işlenirken hata: " + e.getMessage());
         }
     }
 
@@ -149,7 +174,7 @@ public class VoiceNetworkManager {
     private void calculateLatency(long pingTimestamp) {
         long currentTime = System.currentTimeMillis();
         long latency = currentTime - pingTimestamp;
-        System.out.println("Ses gecikme süresi: " + latency + "ms");
+        System.out.println("[SES-NET] Ses gecikme süresi: " + latency + "ms");
     }
 
     /**
@@ -159,7 +184,7 @@ public class VoiceNetworkManager {
      * @return Gönderim başarılı ise true
      */
     public boolean sendVoicePacket(byte[] audioData, boolean isSilence) {
-        if (!connected.get() || socket.isClosed()) {
+        if (!connected.get() || socket == null || socket.isClosed()) {
             return false;
         }
 
@@ -185,10 +210,15 @@ public class VoiceNetworkManager {
             DatagramPacket packet = new DatagramPacket(data, data.length, address, serverPort);
             socket.send(packet);
 
+            // Log - sadece ses paketi ise (sessizlik değilse)
+            if (!isSilence) {
+                System.out.println("[SES-NET] Ses paketi gönderildi: " + data.length + " byte");
+            }
+
             return true;
 
         } catch (IOException e) {
-            System.err.println("Ses paketi gönderilirken hata: " + e.getMessage());
+            System.err.println("[SES-NET] Ses paketi gönderilirken hata: " + e.getMessage());
             return false;
         }
     }
@@ -199,7 +229,7 @@ public class VoiceNetworkManager {
      * @return Gönderim başarılı ise true
      */
     public boolean sendCommand(VoiceCommand command) {
-        if (!connected.get() || socket.isClosed()) {
+        if (!connected.get() || socket == null || socket.isClosed()) {
             return false;
         }
 
@@ -216,10 +246,12 @@ public class VoiceNetworkManager {
             DatagramPacket packet = new DatagramPacket(data, data.length, address, serverPort);
             socket.send(packet);
 
+            System.out.println("[SES-NET] Komut gönderildi: " + command.getType() +
+                    " - Boyut: " + data.length + " byte");
             return true;
 
         } catch (IOException e) {
-            System.err.println("Komut gönderilirken hata: " + e.getMessage());
+            System.err.println("[SES-NET] Komut gönderilirken hata: " + e.getMessage());
             return false;
         }
     }
@@ -231,7 +263,11 @@ public class VoiceNetworkManager {
      */
     public boolean sendJoinCommand(String roomName) {
         VoiceCommand command = new VoiceCommand(CommandType.JOIN, username, roomName);
-        return sendCommand(command);
+        boolean result = sendCommand(command);
+        if (result) {
+            System.out.println("[SES-NET] " + roomName + " odasına katılım komutu gönderildi");
+        }
+        return result;
     }
 
     /**
@@ -268,6 +304,7 @@ public class VoiceNetworkManager {
      */
     public boolean sendPingCommand() {
         VoiceCommand command = new VoiceCommand(CommandType.PING, username);
+        command.setTimestamp(System.currentTimeMillis());
         return sendCommand(command);
     }
 
@@ -276,15 +313,16 @@ public class VoiceNetworkManager {
      */
     public void disconnect() {
         if (connected.getAndSet(false)) {
-            // LOBBY odasından ayrıl
+            // Tüm odalardan ayrıl
             sendLeaveCommand("LOBBY");
 
             // Soket kapat
             if (socket != null && !socket.isClosed()) {
                 socket.close();
+                socket = null;
             }
 
-            System.out.println("Ses sunucusu bağlantısı kapatıldı");
+            System.out.println("[SES-NET] Ses sunucusu bağlantısı kapatıldı");
         }
     }
 
@@ -298,8 +336,20 @@ public class VoiceNetworkManager {
         this.packetListener = listener;
     }
 
+    public VoicePacketListener getPacketListener() {
+        return this.packetListener;
+    }
+
     public void setCommandListener(VoiceCommandListener listener) {
         this.commandListener = listener;
+    }
+
+    public VoiceCommandListener getCommandListener() {
+        return this.commandListener;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     /**
@@ -314,9 +364,5 @@ public class VoiceNetworkManager {
      */
     public interface VoiceCommandListener {
         void onVoiceCommandReceived(VoiceCommand command);
-    }
-
-    public String getUsername() {
-        return username;
     }
 }

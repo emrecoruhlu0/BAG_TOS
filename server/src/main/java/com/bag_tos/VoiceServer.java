@@ -131,9 +131,17 @@ public class VoiceServer implements Runnable {
     private void handleVoicePacket(VoicePacket voicePacket, InetAddress address, int port) {
         String username = voicePacket.getUsername();
         String roomName = voicePacket.getRoomName();
+        boolean isSilence = voicePacket.isSilence();
+        int packetSize = voicePacket.getAudioData() != null ? voicePacket.getAudioData().length : 0;
 
         // Kullanıcı bilgilerini güncelle
         updateClientInfo(username, address, port);
+
+        // Sessiz olmayan paketler için detaylı log
+        if (!isSilence) {
+            System.out.println("[SES] Ses paketi alındı: " + username +
+                    " kullanıcısından, " + packetSize + " byte, oda: " + roomName);
+        }
 
         // Oyun durumuna göre paketi yönlendir
         if (voiceRoomHandler.canTalk(username, roomName)) {
@@ -237,6 +245,7 @@ public class VoiceServer implements Runnable {
      * @param senderUsername Gönderenin kullanıcı adı
      */
     private void broadcastVoicePacket(VoicePacket voicePacket, String senderUsername) {
+
         try {
             // Paketi serialize et
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

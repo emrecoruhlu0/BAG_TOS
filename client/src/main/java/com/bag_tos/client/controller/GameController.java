@@ -13,6 +13,7 @@ import com.bag_tos.common.message.request.ActionRequest;
 import com.bag_tos.common.message.request.ChatRequest;
 import com.bag_tos.common.message.request.VoteRequest;
 import com.bag_tos.common.model.ActionType;
+import com.bag_tos.common.audio.AudioFormat;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -29,9 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-// YENİ: İmportlar ekleyin
+// İmportlar
 import com.bag_tos.client.audio.VoiceChatManager;
-import com.bag_tos.common.audio.AudioFormat;
 
 public class GameController {
     private GameView view;
@@ -42,6 +42,9 @@ public class GameController {
     private Map<String, String> selectedAvatars = new HashMap<>();
     private VoiceChatManager voiceChatManager;
 
+    // Ses bağlantısı kontrolü için zamanlayıcı
+    private java.util.Timer voiceConnectionTimer;
+
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
         this.gameState = gameState;
@@ -51,10 +54,10 @@ public class GameController {
         // ActionManager'ı oluştur
         this.actionManager = new ActionManager(gameState, networkManager, view);
 
-        // YENİ: Ses yöneticisini oluştur
+        // Ses yöneticisini oluştur
         this.voiceChatManager = new VoiceChatManager();
 
-        // YENİ: Ses kontrol paneli olayını bağla
+        // Ses kontrol paneli olayını bağla
         view.getVoiceControlPanel().setMicrophoneStateChangeListener(active -> {
             voiceChatManager.setMicrophoneActive(active);
         });
@@ -100,6 +103,7 @@ public class GameController {
                 view.addSystemMessage("Mafya sohbetini kullanma yetkiniz yok!");
             }
         });
+
         // Hapishane sohbet mesajı gönderme
         view.getJailChatPanel().setOnSendMessage(message -> {
             if (!message.isEmpty()) {
@@ -121,7 +125,7 @@ public class GameController {
         // Aksiyonları yapılandır
         setupActionHandlers();
 
-        // YENİ: Oyun durumu değişikliklerini dinle
+        // Oyun durumu değişikliklerini dinle
         gameState.currentPhaseProperty().addListener((obs, oldPhase, newPhase) -> {
             // Faz değişikliğini ses sistemine bildir
             boolean isNight = (newPhase == GameState.Phase.NIGHT);
@@ -136,7 +140,7 @@ public class GameController {
             });
         });
 
-        // YENİ: Canlılık durumu değişikliklerini dinle
+        // Canlılık durumu değişikliklerini dinle
         gameState.aliveProperty().addListener((obs, wasAlive, isAlive) -> {
             // Hayatta olma durumunu ses sistemine bildir
             voiceChatManager.setPlayerAlive(isAlive);
@@ -230,6 +234,7 @@ public class GameController {
             e.printStackTrace();
         }
     }
+
     private void setupActionHandlers() {
         view.getActionPanel().clearActions();
 
@@ -246,7 +251,7 @@ public class GameController {
         String currentUsername = gameState.getCurrentUsername();
         String currentRole = gameState.getCurrentRole();
 
-        // Hapse alınan kişi kontrolü - YENİ KOD
+        // Hapse alınan kişi kontrolü
         Boolean isJailed = (Boolean) gameState.getData("isJailed");
         if (isJailed != null && isJailed) {
             System.out.println("Oyuncu hapsedilmiş, aksiyon paneli boş bırakılıyor");
@@ -290,7 +295,7 @@ public class GameController {
 
         if (phase == GameState.Phase.NIGHT) {
             switch (currentRole) {
-                case "Mafya" -> {
+                case "Mafya":
                     // Mafya üyelerini belirle
                     List<String> mafiaUsernames = gameState.getPlayers().stream()
                             .filter(p -> "Mafya".equals(p.getRole()))
@@ -315,54 +320,57 @@ public class GameController {
                         networkManager.sendMessage(actionMessage);
                         view.addSystemMessage("Hedef seçildi: " + target.getUsername());
                     }, mafiaUsernames);
-                }
-                case "Doktor" ->
+                    break;
+                case "Doktor":
                     // Doktor iyileştirme aksiyonu
-                        view.getActionPanel().addHealAction(target -> {
-                            // Kendi üzerinde aksiyon kontrolü - Doktor rolüne özel muamele
-                            if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                    target.getUsername().equals(gameState.getCurrentUsername()) &&
-                                    !"Doktor".equals(currentRole)) {
-                                view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                                return;
-                            }
+                    view.getActionPanel().addHealAction(target -> {
+                        // Kendi üzerinde aksiyon kontrolü - Doktor rolüne özel muamele
+                        if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                target.getUsername().equals(gameState.getCurrentUsername()) &&
+                                !"Doktor".equals(currentRole)) {
+                            view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                            return;
+                        }
 
-                            // İyileştirme aksiyonu için Message nesnesi oluştur
-                            Message actionMessage = new Message(MessageType.ACTION);
-                            ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
-                            actionMessage.addData("actionRequest", actionRequest);
+                        // İyileştirme aksiyonu için Message nesnesi oluştur
+                        Message actionMessage = new Message(MessageType.ACTION);
+                        ActionRequest actionRequest = new ActionRequest(ActionType.HEAL.name(), target.getUsername());
+                        actionMessage.addData("actionRequest", actionRequest);
 
-                            networkManager.sendMessage(actionMessage);
-                            view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                        });
-                case "Serif" ->
+                        networkManager.sendMessage(actionMessage);
+                        view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                    });
+                    break;
+                case "Serif":
                     // Şerif araştırma aksiyonu
-                        view.getActionPanel().addInvestigateAction(target -> {
-                            // Kendi üzerinde aksiyon kontrolü
-                            if (!GameConfig.ALLOW_SELF_ACTIONS &&
-                                    target.getUsername().equals(gameState.getCurrentUsername())) {
-                                view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
-                                return;
-                            }
+                    view.getActionPanel().addInvestigateAction(target -> {
+                        // Kendi üzerinde aksiyon kontrolü
+                        if (!GameConfig.ALLOW_SELF_ACTIONS &&
+                                target.getUsername().equals(gameState.getCurrentUsername())) {
+                            view.addSystemMessage("Kendiniz üzerinde aksiyon yapamazsınız!");
+                            return;
+                        }
 
-                            // Araştırma aksiyonu için Message nesnesi oluştur
-                            Message actionMessage = new Message(MessageType.ACTION);
-                            ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
-                            actionMessage.addData("actionRequest", actionRequest);
+                        // Araştırma aksiyonu için Message nesnesi oluştur
+                        Message actionMessage = new Message(MessageType.ACTION);
+                        ActionRequest actionRequest = new ActionRequest(ActionType.INVESTIGATE.name(), target.getUsername());
+                        actionMessage.addData("actionRequest", actionRequest);
 
-                            networkManager.sendMessage(actionMessage);
-                            view.addSystemMessage("Hedef seçildi: " + target.getUsername());
-                        });
-                case "Gardiyan" ->
+                        networkManager.sendMessage(actionMessage);
+                        view.addSystemMessage("Hedef seçildi: " + target.getUsername());
+                    });
+                    break;
+                case "Gardiyan":
                     // Gardiyanın infaz etme aksiyonu (gece)
-                        view.getActionPanel().addExecuteAction(target -> {
-                            Message actionMessage = new Message(MessageType.ACTION);
-                            ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
-                            actionMessage.addData("actionRequest", actionRequest);
+                    view.getActionPanel().addExecuteAction(target -> {
+                        Message actionMessage = new Message(MessageType.ACTION);
+                        ActionRequest actionRequest = new ActionRequest(ActionType.EXECUTE.name(), "prisoner");
+                        actionMessage.addData("actionRequest", actionRequest);
 
-                            networkManager.sendMessage(actionMessage);
-                            view.addSystemMessage("İnfaz kararı verildi!");
-                        });
+                        networkManager.sendMessage(actionMessage);
+                        view.addSystemMessage("İnfaz kararı verildi!");
+                    });
+                    break;
             }
         } else if (phase == GameState.Phase.DAY) {
             // Gündüz fazında oylamaya izin ver
@@ -410,7 +418,6 @@ public class GameController {
         // ActionManager'ı kullan
         actionManager.updateActions();
     }
-
 
     public void showInactiveJailorMessage() {
         Platform.runLater(() -> {
@@ -468,25 +475,76 @@ public class GameController {
                     }, 100  // 100ms gecikme
             );
 
-            // YENİ: Ses sistemini oyun durumuyla senkronize et
+            // Ses sistemini oyun durumuyla senkronize et
             voiceChatManager.synchronizeWithGameState(gameState);
 
-            // YENİ: Ses sistemini başlat (eğer henüz başlatılmamışsa)
+            // Ses sistemini başlat (eğer henüz başlatılmamışsa)
             if (!voiceChatManager.isInitialized()) {
                 String serverAddress = networkManager.getServerAddress();
-                int voicePort = AudioFormat.DEFAULT_VOICE_PORT;
-                boolean initialized = voiceChatManager.initialize(serverAddress, voicePort, gameState.getCurrentUsername());
-                if (!initialized) {
-                    System.err.println("Sesli sohbet sistemi başlatılamadı!");
-                    view.addSystemMessage("Sesli sohbet sistemi başlatılamadı, sadece yazılı sohbet kullanılabilir.");
-                } else {
-                    view.addSystemMessage("Sesli sohbet sistemi başlatıldı. Mikrofon kontrolünü kullanabilirsiniz.");
-                }
+                int voicePort = AudioFormat.DEFAULT_VOICE_PORT; // Sabit 50005 port
+                System.out.println("[UI] Ses sistemi başlatılıyor - Sunucu: " + serverAddress + ", Port: " + voicePort);
+
+                // Yeni thread üzerinde ses başlatma işlemini yap - UI'ı bloklamadan
+                new Thread(() -> {
+                    try {
+                        boolean initialized = voiceChatManager.initialize(serverAddress, voicePort, gameState.getCurrentUsername());
+                        if (initialized) {
+                            Platform.runLater(() -> {
+                                view.addSystemMessage("Sesli sohbet sistemi başlatıldı. Mikrofon kontrolünü kullanabilirsiniz.");
+
+                                // Ses bağlantısını test et
+                                voiceChatManager.measureLatency();
+
+                                // UI'da mikrofon butonunu göster
+                                view.getVoiceControlPanel().setVisible(true);
+
+                                // Periyodik ses bağlantısı kontrolü için zamanlayıcı başlat
+                                startVoiceConnectionChecker();
+                            });
+                        } else {
+                            Platform.runLater(() -> {
+                                view.addSystemMessage("Sesli sohbet sistemi başlatılamadı, sadece yazılı sohbet kullanılabilir.");
+
+                                // UI'da mikrofon butonunu gizle
+                                view.getVoiceControlPanel().setVisible(false);
+                            });
+                        }
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            view.addSystemMessage("Sesli sohbet sistemi başlatılırken hata: " + e.getMessage());
+                            System.err.println("[UI] Ses sistemi başlatma hatası: " + e.getMessage());
+                            e.printStackTrace();
+
+                            // UI'da mikrofon butonunu gizle
+                            view.getVoiceControlPanel().setVisible(false);
+                        });
+                    }
+                }).start();
             }
         } catch (Exception e) {
             System.err.println("UI güncellemesi sırasında hata: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    // Periyodik ses bağlantısı kontrolü
+    private void startVoiceConnectionChecker() {
+        // Önceki timer'ı temizle
+        if (voiceConnectionTimer != null) {
+            voiceConnectionTimer.cancel();
+        }
+
+        // Yeni timer başlat
+        voiceConnectionTimer = new java.util.Timer("VoiceConnectionChecker", true);
+        voiceConnectionTimer.scheduleAtFixedRate(new java.util.TimerTask() {
+            @Override
+            public void run() {
+                // Ses bağlantısını kontrol et
+                if (voiceChatManager != null && voiceChatManager.isInitialized()) {
+                    voiceChatManager.checkVoiceConnection();
+                }
+            }
+        }, 5000, 30000); // İlk 5 saniye sonra, sonra her 30 saniyede bir
     }
 
     private void updateRoleDisplay() {
@@ -614,15 +672,15 @@ public class GameController {
 
     public void updateActionsOnly() {
         Platform.runLater(() -> {
-                // Özel mafya kontrolü
-                if ("Mafya".equals(gameState.getCurrentRole()) &&
-                        gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
+            // Özel mafya kontrolü
+            if ("Mafya".equals(gameState.getCurrentRole()) &&
+                    gameState.getCurrentPhase() == GameState.Phase.NIGHT) {
 
-                    // Doğrudan fix uygula
-                    directMafiaFix();
-                    return; // Diğer kodları çalıştırma
-                }
-                actionManager.updateActions();
+                // Doğrudan fix uygula
+                directMafiaFix();
+                return; // Diğer kodları çalıştırma
+            }
+            actionManager.updateActions();
         });
     }
 
@@ -702,6 +760,17 @@ public class GameController {
     }
 
     public void handleGameEnd(String winnerMessage) {
+        // Ses bağlantısı timer'ını durdur
+        if (voiceConnectionTimer != null) {
+            voiceConnectionTimer.cancel();
+            voiceConnectionTimer = null;
+        }
+
+        // Ses sistemini kapat
+        if (voiceChatManager != null) {
+            voiceChatManager.shutdown();
+        }
+
         Platform.runLater(() -> {
             // Oyun sonu mesajını göster
             Alert alert = AlertUtils.createAlert(
@@ -727,6 +796,17 @@ public class GameController {
     }
 
     public void handleDisconnect() {
+        // Ses bağlantısı timer'ını durdur
+        if (voiceConnectionTimer != null) {
+            voiceConnectionTimer.cancel();
+            voiceConnectionTimer = null;
+        }
+
+        // Ses sistemini kapat
+        if (voiceChatManager != null) {
+            voiceChatManager.shutdown();
+        }
+
         Platform.runLater(() -> {
             Alert alert = AlertUtils.createAlert(
                     Alert.AlertType.ERROR,
@@ -735,9 +815,6 @@ public class GameController {
                     null,
                     "Sunucuyla bağlantı kesildi!"
             );
-            if (voiceChatManager != null) {
-                voiceChatManager.shutdown();
-            }
             alert.showAndWait();
 
             // Login ekranına dön

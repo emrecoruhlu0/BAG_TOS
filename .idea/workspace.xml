@@ -6,10 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="b2ccaf71-235b-40ed-9a09-b5c472ad638c" name="Changes" comment="terminallerden çalışan arayüzsüz kodlar">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/VoiceControlPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/view/components/VoiceControlPanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/ClientHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/Server.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/VoiceRoomHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/VoiceRoomHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/AudioCapture.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/AudioCapture.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/AudioPlayback.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/AudioPlayback.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceActivityDetector.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceActivityDetector.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceChatManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/audio/VoiceChatManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/controller/GameController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/VoiceNetworkManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/com/bag_tos/client/network/VoiceNetworkManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/VoiceServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/com/bag_tos/VoiceServer.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,18 +30,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "emrecoruhlu0"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;emrecoruhlu0&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/emrecoruhlu0/BAG_TOS.git",
-    "accountId": "3ee7d7db-bb0c-4030-8da2-3c33222afe68"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/emrecoruhlu0/BAG_TOS.git&quot;,
+    &quot;accountId&quot;: &quot;3ee7d7db-bb0c-4030-8da2-3c33222afe68&quot;
   }
-}]]></component>
+}</component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -60,26 +63,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.ClientApplication.executor": "Run",
-    "Application.Server.executor": "Run",
-    "Application.client1.executor": "Run",
-    "Application.client2.executor": "Run",
-    "Application.client3.executor": "Run",
-    "Application.client4.executor": "Run",
-    "Application.client5.executor": "Run",
-    "Application.client6.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "javafx-gui",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/emrec/OneDrive/Masaüstü/Bilgisayar Ders/2. Sınıf/2. Dönem/Bilgisayar Ağlarına Giriş/BAG_TOS/client/src/main/resources/images",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.ClientApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.Server.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client1.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client2.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client3.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client4.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client5.executor&quot;: &quot;Run&quot;,
+    &quot;Application.client6.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;javafx-gui&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/emrec/OneDrive/Masaüstü/Bilgisayar Ders/2. Sınıf/2. Dönem/Bilgisayar Ağlarına Giriş/BAG_TOS/client/src/main/resources/images&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\emrec\OneDrive\Masaüstü\Bilgisayar Ders\2. Sınıf\2. Dönem\Bilgisayar Ağlarına Giriş\BAG_TOS\client\src\main\resources\images" />
