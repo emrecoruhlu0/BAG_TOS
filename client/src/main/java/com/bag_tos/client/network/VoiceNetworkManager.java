@@ -183,6 +183,9 @@ public class VoiceNetworkManager {
      * @param isSilence Sessizlik paketi mi
      * @return Gönderim başarılı ise true
      */
+
+    private static int sentPacketCount = 0;
+
     public boolean sendVoicePacket(byte[] audioData, boolean isSilence) {
         if (!connected.get() || socket == null || socket.isClosed()) {
             return false;
@@ -210,9 +213,14 @@ public class VoiceNetworkManager {
             DatagramPacket packet = new DatagramPacket(data, data.length, address, serverPort);
             socket.send(packet);
 
-            // Log - sadece ses paketi ise (sessizlik değilse)
-            if (!isSilence) {
-                System.out.println("[SES-NET] Ses paketi gönderildi: " + data.length + " byte");
+            // Ses verisi varsa loglayalım
+            if (!isSilence && audioData != null) {
+                sentPacketCount++;
+                // Her 10 pakette bir detaylı bilgi
+                if (sentPacketCount % 10 == 0) {
+                    System.out.println("[SES-DEBUG] Toplam " + sentPacketCount +
+                            " ses paketi gönderildi. Son paket boyutu: " + audioData.length + " byte.");
+                }
             }
 
             return true;

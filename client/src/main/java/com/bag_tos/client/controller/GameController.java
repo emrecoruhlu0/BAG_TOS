@@ -45,6 +45,13 @@ public class GameController {
     // Ses bağlantısı kontrolü için zamanlayıcı
     private java.util.Timer voiceConnectionTimer;
 
+    private java.util.Timer uiUpdateTimer;
+
+    private GameState.Phase lastPhase = null;
+    private String lastRole = "";
+    private int lastTime = -1;
+    private int lastPlayerCount = 0;
+
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
         this.gameState = gameState;
@@ -56,6 +63,13 @@ public class GameController {
 
         // Ses yöneticisini oluştur
         this.voiceChatManager = new VoiceChatManager();
+
+        this.voiceConnectionTimer = null;
+        this.uiUpdateTimer = null;
+        this.lastPhase = gameState.getCurrentPhase();
+        this.lastRole = gameState.getCurrentRole();
+        this.lastTime = gameState.getRemainingTime();
+        this.lastPlayerCount = gameState.getPlayers().size();
 
         // Ses kontrol paneli olayını bağla
         view.getVoiceControlPanel().setMicrophoneStateChangeListener(active -> {
@@ -439,92 +453,101 @@ public class GameController {
     }
 
     public void updateUI() {
-        if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> updateUI());
-            return;
+        if (Platform.isFxApplicationThread()) {
+            updateUIInternal();
+        } else {
+            Platform.runLater(this::updateUIInternal);
         }
+    }
 
+    private void updateUIInternal() {
         try {
             System.out.println("Tam UI güncellemesi başlatılıyor...");
 
-            updatePhaseDisplay();
-            updateRoleDisplay();
-            updatePlayerListDisplay();
-            updateTimeDisplay();
+            // Önceki Timer'ı iptal et
+            if (uiUpdateTimer != null) {
+                uiUpdateTimer.cancel();
+                uiUpdateTimer = null;
+            }
 
-            // Gecikmeli aksiyonları yükleme
-            new java.util.Timer().schedule(
-                    new java.util.TimerTask() {
-                        @Override
-                        public void run() {
-                            Platform.runLater(() -> {
-                                try {
-                                    updateActionControls();
-                                    updateChatControls();
+            // Sadece değişen şeyleri güncelle, tümünü değil
+            boolean phaseChanged = false;
+            boolean roleChanged = false;
+            boolean playersChanged = false;
+            boolean timeChanged = false;
 
-                                    // Oyuncu adını güncelle
-                                    view.updateUsername(gameState.getCurrentUsername());
+            // Faz değiştiyse sadece faz gösterimini güncelle
+            if (lastPhase != gameState.getCurrentPhase()) {
+                lastPhase = gameState.getCurrentPhase();
+                updatePhaseDisplay();
+                phaseChanged = true;
+            }
 
-                                    System.out.println("Tam UI güncellemesi tamamlandı");
-                                } catch (Exception e) {
-                                    System.err.println("Gecikmeli UI güncellemesi sırasında hata: " + e.getMessage());
-                                    e.printStackTrace();
-                                }
-                            });
-                        }
-                    }, 100  // 100ms gecikme
-            );
+            // Rol değiştiyse sadece rol gösterimini güncelle
+            if (lastRole == null || !lastRole.equals(gameState.getCurrentRole())) {
+                lastRole = gameState.getCurrentRole();
+                updateRoleDisplay();
+                roleChanged = true;
+            }
+
+            // Zaman değiştiyse sadece zaman gösterimini güncelle
+            if (lastTime != gameState.getRemainingTime()) {
+                lastTime = gameState.getRemainingTime();
+                updateTimeDisplay();
+                timeChanged = true;
+            }
+
+            // Oyuncu listesi değiştiyse sadece oyuncu listesini güncelle
+            if (havePlayersChanged()) {
+                updatePlayerListInternal();
+                playersChanged = true;
+            }
+
+            // Eğer herhangi bir değişiklik olduysa, aksiyon ve sohbet kontrollerini güncelle
+            if (phaseChanged || roleChanged || playersChanged) {
+                // Yeni bir timer oluştur
+                uiUpdateTimer = new java.util.Timer();
+                uiUpdateTimer.schedule(new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        Platform.runLater(() -> {
+                            try {
+                                updateActionControls();
+                                updateChatControls();
+                                System.out.println("Gecikmeli UI güncellemesi tamamlandı");
+                            } catch (Exception e) {
+                                System.err.println("Gecikmeli UI güncellemesi sırasında hata: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        });
+                    }
+                }, 100);
+            }
 
             // Ses sistemini oyun durumuyla senkronize et
             voiceChatManager.synchronizeWithGameState(gameState);
 
-            // Ses sistemini başlat (eğer henüz başlatılmamışsa)
-            if (!voiceChatManager.isInitialized()) {
-                String serverAddress = networkManager.getServerAddress();
-                int voicePort = AudioFormat.DEFAULT_VOICE_PORT; // Sabit 50005 port
-                System.out.println("[UI] Ses sistemi başlatılıyor - Sunucu: " + serverAddress + ", Port: " + voicePort);
+            System.out.println("Tam UI güncellemesi tamamlandı - Değişiklikler: " +
+                    "Faz=" + phaseChanged + ", Rol=" + roleChanged +
+                    ", Oyuncular=" + playersChanged + ", Zaman=" + timeChanged);
 
-                // Yeni thread üzerinde ses başlatma işlemini yap - UI'ı bloklamadan
-                new Thread(() -> {
-                    try {
-                        boolean initialized = voiceChatManager.initialize(serverAddress, voicePort, gameState.getCurrentUsername());
-                        if (initialized) {
-                            Platform.runLater(() -> {
-                                view.addSystemMessage("Sesli sohbet sistemi başlatıldı. Mikrofon kontrolünü kullanabilirsiniz.");
-
-                                // Ses bağlantısını test et
-                                voiceChatManager.measureLatency();
-
-                                // UI'da mikrofon butonunu göster
-                                view.getVoiceControlPanel().setVisible(true);
-
-                                // Periyodik ses bağlantısı kontrolü için zamanlayıcı başlat
-                                startVoiceConnectionChecker();
-                            });
-                        } else {
-                            Platform.runLater(() -> {
-                                view.addSystemMessage("Sesli sohbet sistemi başlatılamadı, sadece yazılı sohbet kullanılabilir.");
-
-                                // UI'da mikrofon butonunu gizle
-                                view.getVoiceControlPanel().setVisible(false);
-                            });
-                        }
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            view.addSystemMessage("Sesli sohbet sistemi başlatılırken hata: " + e.getMessage());
-                            System.err.println("[UI] Ses sistemi başlatma hatası: " + e.getMessage());
-                            e.printStackTrace();
-
-                            // UI'da mikrofon butonunu gizle
-                            view.getVoiceControlPanel().setVisible(false);
-                        });
-                    }
-                }).start();
-            }
         } catch (Exception e) {
             System.err.println("UI güncellemesi sırasında hata: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private boolean havePlayersChanged() {
+        // Son oyuncu listesi kontrolü
+        if (lastPlayerCount != gameState.getPlayers().size()) {
+            lastPlayerCount = gameState.getPlayers().size();
+            return true;
+        }
+
+        // Oyuncuların değişip değişmediğini daha detaylı kontrol etmek için
+        // hash veya version numarası yaklaşımı kullanılabilir
+
+        return false; // Basitleştirmek için
     }
 
     // Periyodik ses bağlantısı kontrolü
@@ -646,28 +669,13 @@ public class GameController {
 
     // GameController sınıfında, updatePlayerListOnly metodunu değiştir
     public void updatePlayerListOnly() {
-        Platform.runLater(() -> {
-            try {
-                // Güncel oyuncu listesini al
-                List<Player> currentPlayers = gameState.getPlayers();
-
-                // Oyuncu listesini logla
-                System.out.println("ÇEMBERE OYUNCULAR GÖNDERİLİYOR - Toplam: " + currentPlayers.size());
-                for (Player p : currentPlayers) {
-                    System.out.println("  - Oyuncu: " + p.getUsername() +
-                            ", Avatar: " + p.getAvatarId() +
-                            ", Rol: " + p.getRole() +
-                            ", Hayatta: " + p.isAlive());
-                }
-
-                // Her durumda updatePlayers metodunu çağır
-                view.getPlayerCircleView().updatePlayers(currentPlayers);
-
-            } catch (Exception e) {
-                System.err.println("Oyuncu listesi güncellenirken hata: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
+        // Eğer zaten UI thread'inde isek, direkt çalıştır
+        if (Platform.isFxApplicationThread()) {
+            updatePlayerListInternal();
+        } else {
+            // Değilse Platform.runLater kullan
+            Platform.runLater(this::updatePlayerListInternal);
+        }
     }
 
     public void updateActionsOnly() {
@@ -682,6 +690,44 @@ public class GameController {
             }
             actionManager.updateActions();
         });
+    }
+
+    private void updatePlayerListInternal() {
+        try {
+            // Güncel oyuncu listesini al - güvenli kopya oluştur
+            List<Player> currentPlayers = new ArrayList<>(gameState.getPlayers());
+
+            // Oyuncu listesini logla
+            System.out.println("ÇEMBERE OYUNCULAR GÖNDERİLİYOR - Toplam: " + currentPlayers.size());
+            for (Player p : currentPlayers) {
+                System.out.println("  - Oyuncu: " + p.getUsername() +
+                        ", Avatar: " + p.getAvatarId() +
+                        ", Rol: " + p.getRole() +
+                        ", Hayatta: " + p.isAlive());
+            }
+
+            // PlayerCircleView güncellemesi
+            if (view.getPlayerCircleView() != null) {
+                view.getPlayerCircleView().updatePlayers(currentPlayers);
+            }
+
+            // Eski liste görünümü hala kullanılıyorsa onu da güncelle
+            if (view.getPlayerListView() != null && view.getPlayerListView().isVisible()) {
+                view.getPlayerListView().updatePlayers(currentPlayers);
+            }
+
+            // Konsola güncel oyuncu listesini yazdır
+            System.out.println("Oyuncu Listesi Güncellendi, Oyuncu Sayısı: " + currentPlayers.size());
+            for (Player player : currentPlayers) {
+                System.out.println("Oyuncu: " + player.getUsername() +
+                        ", Avatar: " + player.getAvatarId() +
+                        ", Hayatta: " + player.isAlive());
+            }
+
+        } catch (Exception e) {
+            System.err.println("Oyuncu listesi güncellenirken hata: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void directMafiaFix() {

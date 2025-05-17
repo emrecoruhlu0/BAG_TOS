@@ -8,10 +8,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 
-/**
- * Ses kontrolü için kullanıcı arayüzü bileşeni.
- * Mikrofon açma/kapama butonu içerir.
- */
 public class VoiceControlPanel extends HBox {
     private Button microphoneButton;
     private boolean microphoneActive = false;
@@ -20,9 +16,6 @@ public class VoiceControlPanel extends HBox {
     private Image microphoneOnImage;
     private Image microphoneOffImage;
 
-    /**
-     * Ses kontrol paneli oluşturur
-     */
     public VoiceControlPanel() {
         // Panel ayarları
         setAlignment(Pos.CENTER_RIGHT);
@@ -36,6 +29,9 @@ public class VoiceControlPanel extends HBox {
         // Mikrofon butonu
         microphoneButton = new Button();
         microphoneButton.setGraphic(new ImageView(microphoneOffImage));
+        microphoneButton.setMaxSize(30, 30); // Butonu da sınırla
+        microphoneButton.setMinSize(30, 30);
+        microphoneButton.setPrefSize(30, 30);
         microphoneButton.setTooltip(new Tooltip("Mikrofonu Aç/Kapat"));
         microphoneButton.getStyleClass().add("microphone-button");
 
@@ -49,13 +45,15 @@ public class VoiceControlPanel extends HBox {
         updateMicrophoneButton();
     }
 
-    /**
-     * Görselleri yükler
-     */
     private void loadImages() {
         try {
-            microphoneOnImage = new Image(getClass().getResourceAsStream("/images/microphone.png"));
-            microphoneOffImage = new Image(getClass().getResourceAsStream("/images/microphone_off.png"));
+            int iconSize = 24; // 24x24 piksel veya istediğiniz boyut
+
+            microphoneOnImage = new Image(getClass().getResourceAsStream("/images/microphone.png"),
+                    iconSize, iconSize, true, true);
+            microphoneOffImage = new Image(getClass().getResourceAsStream("/images/microphone_off.png"),
+                    iconSize, iconSize, true, true);
+
         } catch (Exception e) {
             System.err.println("Mikrodon görselleri yüklenemedi: " + e.getMessage());
             // Dummy görseller oluştur - boş URL ile 1x1 görsel
@@ -64,9 +62,6 @@ public class VoiceControlPanel extends HBox {
         }
     }
 
-    /**
-     * Mikrofonun aktifliğini değiştirir
-     */
     private void toggleMicrophone() {
         microphoneActive = !microphoneActive;
         updateMicrophoneButton();
@@ -77,9 +72,6 @@ public class VoiceControlPanel extends HBox {
         }
     }
 
-    /**
-     * Mikrofon butonunun görünümünü günceller
-     */
     private void updateMicrophoneButton() {
         if (microphoneActive) {
             // Mikrofon aktif
@@ -96,10 +88,6 @@ public class VoiceControlPanel extends HBox {
         }
     }
 
-    /**
-     * Mikrofonun aktifliğini harici olarak ayarlar
-     * @param active Aktif ise true
-     */
     public void setMicrophoneActive(boolean active) {
         if (microphoneActive != active) {
             microphoneActive = active;
@@ -107,18 +95,10 @@ public class VoiceControlPanel extends HBox {
         }
     }
 
-    /**
-     * Mikrofonun aktif olup olmadığını döndürür
-     * @return Aktif ise true
-     */
     public boolean isMicrophoneActive() {
         return microphoneActive;
     }
 
-    /**
-     * Mikrofon butonu aktifliğini ayarlar
-     * @param enabled Aktif ise true
-     */
     public void setMicrophoneEnabled(boolean enabled) {
         microphoneButton.setDisable(!enabled);
 
@@ -128,17 +108,10 @@ public class VoiceControlPanel extends HBox {
         }
     }
 
-    /**
-     * Mikrofon durumu değişim dinleyicisi ayarlar
-     * @param listener Dinleyici
-     */
     public void setMicrophoneStateChangeListener(MicrophoneStateChangeListener listener) {
         this.listener = listener;
     }
 
-    /**
-     * Mikrofon durumu değişim dinleyici arayüzü
-     */
     public interface MicrophoneStateChangeListener {
         void onMicrophoneStateChanged(boolean active);
     }

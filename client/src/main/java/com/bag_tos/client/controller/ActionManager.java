@@ -36,41 +36,54 @@ public class ActionManager {
         this.view = view;
     }
 
-    /**
-     * Mevcut rol ve faza göre uygun aksiyonları ekler
-     */
+    // ActionManager sınıfında
     public void updateActions() {
-        Platform.runLater(() -> {
-            try {
-                // Aksiyon panelini temizle
-                view.getActionPanel().clearActions();
+        // Eğer zaten UI thread'inde değilsek, Platform.runLater kullan
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::updateActions);
+            return;
+        }
 
-                // Mevcut durum bilgilerini al
-                String currentRole = gameState.getCurrentRole();
-                GameState.Phase currentPhase = gameState.getCurrentPhase();
-                String currentUsername = gameState.getCurrentUsername();
-
-                System.out.println("[DEBUG] ActionManager: Aksiyon güncelleniyor - Rol: " + currentRole +
-                        ", Faz: " + currentPhase +
-                        ", Kullanıcı: " + currentUsername);
-
-                // Özel durumları kontrol et
-                if (handleSpecialCases()) {
-                    return; // Özel durum varsa metodu bitir
-                }
-
-                // Faza göre aksiyonları ekle
-                if (currentPhase == GameState.Phase.NIGHT) {
-                    addNightActions(currentRole);
-                } else if (currentPhase == GameState.Phase.DAY) {
-                    addDayActions(currentRole);
-                }
-            } catch (Exception e) {
-                System.err.println("[HATA] ActionManager: Aksiyonlar güncellenirken hata - " + e.getMessage());
-                e.printStackTrace();
+        try {
+            // Statik bir bayrak kullanarak son güncelleme zamanını kontrol et
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastUpdateTime < 200) { // 200ms içinde tekrar güncelleme yapma
+                System.out.println("[DEBUG] ActionManager: Çok sık güncelleme isteği, atlanıyor. Son güncellemeden beri: " +
+                        (currentTime - lastUpdateTime) + "ms");
+                return;
             }
-        });
+            lastUpdateTime = currentTime;
+
+            // Aksiyon panelini temizle
+            view.getActionPanel().clearActions();
+
+            // Mevcut durum bilgilerini al
+            String currentRole = gameState.getCurrentRole();
+            GameState.Phase currentPhase = gameState.getCurrentPhase();
+            String currentUsername = gameState.getCurrentUsername();
+
+            System.out.println("[DEBUG] ActionManager: Aksiyon güncelleniyor - Rol: " + currentRole +
+                    ", Faz: " + currentPhase + ", Kullanıcı: " + currentUsername);
+
+            // Özel durumları kontrol et
+            if (handleSpecialCases()) {
+                return; // Özel durum varsa metodu bitir
+            }
+
+            // Faza göre aksiyonları ekle
+            if (currentPhase == GameState.Phase.NIGHT) {
+                addNightActions(currentRole);
+            } else if (currentPhase == GameState.Phase.DAY) {
+                addDayActions(currentRole);
+            }
+        } catch (Exception e) {
+            System.err.println("[HATA] ActionManager: Aksiyonlar güncellenirken hata - " + e.getMessage());
+            e.printStackTrace();
+        }
     }
+
+    // ActionManager sınıfına eklenecek statik değişken
+    private static long lastUpdateTime = 0;
 
     /**
      * Özel durumları (hapis, jester, vb.) kontrol eder

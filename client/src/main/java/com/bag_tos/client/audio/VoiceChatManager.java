@@ -130,24 +130,34 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
     /**
      * Mikrofon erişim izni kontrolü
      */
+// Mikrofon erişimi kontrolü için ek kontroller
     private boolean checkMicrophoneAccess() {
         try {
-            // Geçici bir TargetDataLine oluştur ve hemen kapat
-            javax.sound.sampled.AudioFormat format = AudioFormat.getAudioFormat();
-            TargetDataLine line = AudioSystem.getTargetDataLine(format);
-
-            // Sadece format kontrolü yap, gerçekten açma
-            if (AudioSystem.isLineSupported(new DataLine.Info(TargetDataLine.class, format))) {
-                // Gerçekte açmayı dene
-                line.open(format, AudioFormat.BUFFER_SIZE);
-                line.close();
-                return true;
+            // Desteklenen formatlarda bir ses formatı bulmaya çalış
+            Mixer.Info[] mixerInfos = AudioSystem.getMixerInfo();
+            for (Mixer.Info info : mixerInfos) {
+                Mixer mixer = AudioSystem.getMixer(info);
+                if (mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, null))) {
+                    System.out.println("[SES] Kullanılabilir mikrofon bulundu: " + info.getName());
+                    return true;
+                }
             }
+            System.err.println("[SES] Desteklenen mikrofon bulunamadı!");
             return false;
         } catch (Exception e) {
             System.err.println("[SES] Mikrofon erişim kontrolü başarısız: " + e.getMessage());
             return false;
         }
+    }
+
+    public static javax.sound.sampled.AudioFormat getAudioFormat() {
+        return new javax.sound.sampled.AudioFormat(
+                44100.0F,  // Daha yaygın destek gören bir örnekleme hızı
+                16,
+                1,
+                true,
+                false
+        );
     }
 
     /**
@@ -308,13 +318,18 @@ public class VoiceChatManager implements AudioCapture.AudioCaptureListener,
     }
 
     // VoiceNetworkManager.VoicePacketListener implementasyonu
+    private static int receivedPacketCount = 0;
+
+    // Sonra ilgili metotta:
     @Override
     public void onVoicePacketReceived(VoicePacket packet) {
-        // Ses verisini oynat
-        if (initialized.get() && !packet.isSilence()) {
-            System.out.println("[SES] Ses paketi alındı: " + packet.getUsername() + " kullanıcısından, " +
-                    packet.getAudioData().length + " byte");
-            audioPlayback.queueAudio(packet.getAudioData());
+        if (!packet.isSilence() && packet.getAudioData() != null) {
+            receivedPacketCount++;
+            if (receivedPacketCount % 10 == 0) {
+                System.out.println("[SES-DEBUG] Toplam " + receivedPacketCount +
+                        " ses paketi alındı. Son paket: " + packet.getUsername() +
+                        " kullanıcısından, boyut: " + packet.getAudioData().length + " byte.");
+            }
         }
     }
 

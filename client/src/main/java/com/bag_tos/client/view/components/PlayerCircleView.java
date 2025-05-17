@@ -1,6 +1,7 @@
 package com.bag_tos.client.view.components;
 
 import com.bag_tos.client.model.Player;
+import javafx.application.Platform;
 import javafx.scene.layout.Pane;
 
 import java.util.*;
@@ -50,28 +51,34 @@ public class PlayerCircleView extends Pane {
 
     private Map<String, PlayerAvatarView> avatarMap = new HashMap<>();
 
-    // Test kenarlığını kaldır
-// playerCircleView.setStyle("-fx-border-color: red; -fx-border-width: 2px;");
+    // Mevcut sorunlu metod (yaklaşık satır 73 civarında)
+// PlayerCircleView.java - Düzeltilmiş versiyon
 
-// Daha iyi ölçeklendirme için radius hesaplamasını güncelle
-    //radius = Math.min(centerX, centerY) * 0.6; // 0.7 yerine 0.6 kullanılabilir
-
-    // avatarMap kullanımını etkinleştir
     public void updatePlayers(List<Player> players) {
-        // Mevcut tüm avatarları temizle
-        getChildren().clear();
-        playerAvatars.clear();
-
-        // Hata kontrolü
+        // Mevcut oyuncularla yeni oyuncuları karşılaştır
         if (players == null || players.isEmpty()) {
             System.out.println("UYARI: Boş oyuncu listesi!");
+            Platform.runLater(() -> {
+                playerAvatars.clear();
+                getChildren().clear();
+            });
             return;
         }
 
-        // Debug log: Gelen oyuncuları ve avatarlarını göster
+        // Oyuncu listesini kopyala
+        final List<Player> playersCopy = new ArrayList<>(players);
+
+        // Optimizasyon: Oyuncu listesi değişmemiş ise güncelleme yapma
+        if (!hasPlayerListChanged(playersCopy)) {
+            System.out.println("Oyuncu listesi değişmemiş, güncelleme atlanıyor.");
+            return;
+        }
+
+        // Yeni avatar listesi oluştur
+        List<PlayerAvatarView> newAvatars = new ArrayList<>();
+
         System.out.println("ÇEMBERE GELEN OYUNCULAR:");
-        for (Player p : players) {
-            // Null kontrolleri ekle
+        for (Player p : playersCopy) {
             if (p == null) {
                 System.out.println("  > NULL OYUNCU NESNESI!");
                 continue;
@@ -81,16 +88,51 @@ public class PlayerCircleView extends Pane {
 
             try {
                 PlayerAvatarView avatar = new PlayerAvatarView(p);
-                playerAvatars.add(avatar);
-                getChildren().add(avatar);
+                newAvatars.add(avatar);
             } catch (Exception e) {
                 System.err.println("Oyuncu avatarı oluşturulurken hata: " + e.getMessage());
             }
         }
 
-        // Pozisyonları güncelle
-        updatePlayerPositions();
+        Platform.runLater(() -> {
+            try {
+                getChildren().clear();
+                playerAvatars.clear();
+                playerAvatars.addAll(newAvatars);
+                getChildren().addAll(newAvatars);
+                updatePlayerPositions();
+
+                // Mevcut oyuncu listesini kaydet (optimizasyon için)
+                lastPlayerList = new ArrayList<>(playersCopy);
+            } catch (Exception e) {
+                System.err.println("Oyuncu çemberi güncellenirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
+
+    private boolean hasPlayerListChanged(List<Player> newPlayers) {
+        if (lastPlayerList == null || lastPlayerList.size() != newPlayers.size()) {
+            return true;
+        }
+
+        // Basit karşılaştırma - oyuncu adları ve durumları değişmiş mi?
+        for (int i = 0; i < lastPlayerList.size(); i++) {
+            Player oldPlayer = lastPlayerList.get(i);
+            Player newPlayer = newPlayers.get(i);
+
+            if (!oldPlayer.getUsername().equals(newPlayer.getUsername()) ||
+                    oldPlayer.isAlive() != newPlayer.isAlive() ||
+                    !oldPlayer.getAvatarId().equals(newPlayer.getAvatarId())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Sınıfa eklenecek değişken
+    private List<Player> lastPlayerList = null;
 
     public void updatePlayerData(List<Player> players) {
         // Önce oyuncu sayısını kontrol edin
