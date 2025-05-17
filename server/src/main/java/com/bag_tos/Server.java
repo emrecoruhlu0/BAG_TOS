@@ -67,7 +67,23 @@ public class Server {
      * Yeni bağlantıyı işler
      */
     private void handleNewConnection(Socket clientSocket) {
-        // Bu metot aynı kalacak
+        try {
+            // Yeni bir ClientHandler oluştur
+            ClientHandler clientHandler = new ClientHandler(clientSocket, roomHandler);
+            clients.add(clientHandler);
+
+            // Thread havuzunda çalıştır
+            threadPool.submit(clientHandler);
+
+            System.out.println("Yeni istemci bağlandı: " + clientSocket.getInetAddress());
+        } catch (IOException e) {
+            System.err.println("İstemci bağlantısı işlenirken hata: " + e.getMessage());
+            try {
+                clientSocket.close();
+            } catch (IOException ex) {
+                // Yoksay
+            }
+        }
     }
 
     /**

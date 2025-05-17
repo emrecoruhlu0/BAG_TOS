@@ -58,9 +58,9 @@ public class VoiceControlPanel extends HBox {
             microphoneOffImage = new Image(getClass().getResourceAsStream("/images/microphone_off.png"));
         } catch (Exception e) {
             System.err.println("Mikrodon görselleri yüklenemedi: " + e.getMessage());
-            // Dummy görseller oluştur
-            microphoneOnImage = new Image(1, 1, false, false);
-            microphoneOffImage = new Image(1, 1, false, false);
+            // Dummy görseller oluştur - boş URL ile 1x1 görsel
+            microphoneOnImage = new Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==");
+            microphoneOffImage = new Image("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==");
         }
     }
 

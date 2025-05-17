@@ -134,4 +134,14 @@ public class VoiceRoomHandler {
         }
         return Collections.emptyList();
     }
+
+    public void playerMuted(String username) {
+        // Burada yapılacak özel bir işlem yok, sadece log
+        System.out.println("Voice: " + username + " muted their microphone");
+    }
+
+    public void playerUnmuted(String username) {
+        // Burada yapılacak özel bir işlem yok, sadece log
+        System.out.println("Voice: " + username + " unmuted their microphone");
+    }
 }

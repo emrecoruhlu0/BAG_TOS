@@ -96,7 +96,6 @@ public class ClientHandler implements Runnable {
             cleanup();
         }
     }
-
     public String getAvatarId() {
         return avatarId;
     }
