@@ -1,6 +1,7 @@
 package com.bag_tos.client.view.components;
 
 import com.bag_tos.client.model.Player;
+import javafx.application.Platform;
 import javafx.scene.layout.Pane;
 
 import java.util.*;
@@ -58,20 +59,24 @@ public class PlayerCircleView extends Pane {
 
     // avatarMap kullanımını etkinleştir
     public void updatePlayers(List<Player> players) {
-        // Mevcut tüm avatarları temizle
-        getChildren().clear();
-        playerAvatars.clear();
-
-        // Hata kontrolü
+        // Eğer liste boşsa, temizle ve çık
         if (players == null || players.isEmpty()) {
             System.out.println("UYARI: Boş oyuncu listesi!");
+            Platform.runLater(() -> {
+                playerAvatars.clear();
+                getChildren().clear();
+            });
             return;
         }
 
-        // Debug log: Gelen oyuncuları ve avatarlarını göster
+        // Oyuncu listesini kopyala (değişimden kaçınmak için)
+        final List<Player> playersCopy = new ArrayList<>(players);
+
+        // Yeni avatar listesi oluştur
+        List<PlayerAvatarView> newAvatars = new ArrayList<>();
+
         System.out.println("ÇEMBERE GELEN OYUNCULAR:");
-        for (Player p : players) {
-            // Null kontrolleri ekle
+        for (Player p : playersCopy) {
             if (p == null) {
                 System.out.println("  > NULL OYUNCU NESNESI!");
                 continue;
@@ -81,15 +86,30 @@ public class PlayerCircleView extends Pane {
 
             try {
                 PlayerAvatarView avatar = new PlayerAvatarView(p);
-                playerAvatars.add(avatar);
-                getChildren().add(avatar);
+                newAvatars.add(avatar);
             } catch (Exception e) {
                 System.err.println("Oyuncu avatarı oluşturulurken hata: " + e.getMessage());
             }
         }
 
-        // Pozisyonları güncelle
-        updatePlayerPositions();
+        // JavaFX thread'inde UI güncellemesi yap
+        Platform.runLater(() -> {
+            try {
+                // Önce tüm içeriği temizle
+                getChildren().clear();
+                playerAvatars.clear();
+
+                // Sonra yeni avatarları ekle
+                playerAvatars.addAll(newAvatars);
+                getChildren().addAll(newAvatars);
+
+                // Pozisyonları güncelle
+                updatePlayerPositions();
+            } catch (Exception e) {
+                System.err.println("Oyuncu çemberi güncellenirken hata: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 
     public void updatePlayerData(List<Player> players) {

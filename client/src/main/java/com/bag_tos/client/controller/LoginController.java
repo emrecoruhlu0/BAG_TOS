@@ -2,12 +2,13 @@ package com.bag_tos.client.controller;
 
 import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.model.Player;
-import com.bag_tos.client.network.NetworkManager;
 import com.bag_tos.client.network.MessageHandler;
+import com.bag_tos.client.network.NetworkManager;
 import com.bag_tos.client.view.LoginView;
 import com.bag_tos.common.message.Message;
 import com.bag_tos.common.message.MessageType;
 import javafx.application.Platform;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -23,7 +24,44 @@ public class LoginController {
         this.networkManager = networkManager;
         this.view = new LoginView();
 
+        setupWindow();
+        setupResponsiveLayout();
         configureView();
+    }
+
+    private void setupWindow() {
+        // Pencere boyutunu ve başlığını ayarla
+        primaryStage.setTitle("Town of Salem Clone - Login");
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(600);
+
+        // Başlangıç boyutu (daha büyük)
+        primaryStage.setWidth(1280);
+        primaryStage.setHeight(800);
+
+        // Sahneyi oluştur ve ayarla
+        Scene scene = new Scene(view);
+        primaryStage.setScene(scene);
+
+        // Pencereyi ekranın ortasına yerleştir
+        primaryStage.centerOnScreen();
+
+        // CSS stil dosyasını ekle
+        if (getClass().getResource("/css/application.css") != null) {
+            scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+        }
+    }
+
+    private void setupResponsiveLayout() {
+        // View'un root elemanını al (LoginView)
+        Parent root = view;
+
+        // Root elemanın pencereyi tamamen doldurmasını sağla
+        root.prefWidthProperty().bind(primaryStage.widthProperty());
+        root.prefHeightProperty().bind(primaryStage.heightProperty());
+
+        // Minimum boyut ayarla
+        root.setMinSize(800, 600);
     }
 
     private void configureView() {
@@ -34,9 +72,7 @@ public class LoginController {
         String username = view.getUsernameField().getText().trim();
         String server = view.getServerField().getText().trim();
         String portText = view.getPortField().getText().trim();
-        String avatarId = view.getSelectedAvatarId(); // Avatar bilgisini al
-
-        System.out.println("Login ekranında seçilen avatar: " + username + " -> " + avatarId);
+        String avatarId = view.getSelectedAvatarId();
 
         if (username.isEmpty()) {
             view.setStatusText("Lütfen kullanıcı adı giriniz!");
@@ -57,7 +93,7 @@ public class LoginController {
                         // Kullanıcı adını ve avatar ID'sini sunucuya gönder
                         Message authMessage = new Message(MessageType.READY);
                         authMessage.addData("username", username);
-                        authMessage.addData("avatarId", avatarId); // Avatar ID'sini ekle
+                        authMessage.addData("avatarId", avatarId);
                         networkManager.sendMessage(authMessage);
 
                         // GameState'e bilgileri kaydet
@@ -75,15 +111,8 @@ public class LoginController {
                         MessageHandler messageHandler = new MessageHandler(lobbyController, gameState);
                         networkManager.setMessageListener(messageHandler);
 
-                        // Yeni Scene'i göster
-                        Scene scene = new Scene(lobbyController.getView(), 700, 500);
-
-                        // CSS stil dosyasını ekle
-                        if (getClass().getResource("/css/application.css") != null) {
-                            scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
-                        }
-
-                        primaryStage.setScene(scene);
+                        // Animasyonlu geçiş kullan
+                        customImageFadeTransition(lobbyController.getView(), "/images/logo.png");
                     } else {
                         view.setStatusText("Bağlantı hatası! Lütfen tekrar deneyin.");
                         view.getConnectButton().setDisable(false);
@@ -93,6 +122,122 @@ public class LoginController {
 
         } catch (NumberFormatException e) {
             view.setStatusText("Geçerli bir port numarası giriniz!");
+        }
+    }
+
+    private void customImageFadeTransition(Parent nextScreenRoot, String imagePath) {
+        // Mevcut sahneyi al
+        Scene currentScene = primaryStage.getScene();
+        double sceneWidth = currentScene.getWidth();
+        double sceneHeight = currentScene.getHeight();
+
+        try {
+            // DÜZELTME: Dosya yolu için kontrol ekleyin
+            InputStream imageStream = getClass().getResourceAsStream(imagePath);
+
+            // Eğer görsel bulunamazsa, varsayılan geçişe geri dön
+            if (imageStream == null) {
+                System.err.println("UYARI: Görsel bulunamadı: " + imagePath);
+                System.err.println("Varsayılan geçiş kullanılıyor...");
+
+                // Basit fade geçişi uygula
+                Scene nextScene = new Scene(nextScreenRoot, sceneWidth, sceneHeight);
+                if (currentScene.getStylesheets().size() > 0) {
+                    nextScene.getStylesheets().addAll(currentScene.getStylesheets());
+                }
+
+                nextScreenRoot.setOpacity(0);
+                primaryStage.setScene(nextScene);
+
+                FadeTransition fadeIn = new FadeTransition(Duration.millis(500), nextScreenRoot);
+                fadeIn.setFromValue(0.0);
+                fadeIn.setToValue(1.0);
+                fadeIn.play();
+                return;
+            }
+
+            // Görsel bulundu, yüklemeye devam et
+            Image transitionImage = new Image(imageStream);
+            ImageView imageView = new ImageView(transitionImage);
+
+            // Görsel boyutlarını ayarla (ekranın %80'i kadar olsun)
+            double maxWidth = sceneWidth * 0.8;
+            double maxHeight = sceneHeight * 0.8;
+
+            if (transitionImage.getWidth() > maxWidth || transitionImage.getHeight() > maxHeight) {
+                double scale = Math.min(maxWidth / transitionImage.getWidth(),
+                        maxHeight / transitionImage.getHeight());
+                imageView.setFitWidth(transitionImage.getWidth() * scale);
+                imageView.setFitHeight(transitionImage.getHeight() * scale);
+            }
+
+            // Stack panel üzerinde görsel ve yeni ekranı gösterelim
+            StackPane transitionPane = new StackPane();
+            transitionPane.getChildren().addAll(nextScreenRoot, imageView);
+
+            // Başlangıçta ekran ve görsel görünmez olsun
+            nextScreenRoot.setOpacity(0);
+            imageView.setOpacity(0);
+
+            // Yeni sahneyi ayarla
+            Scene nextScene = new Scene(transitionPane, sceneWidth, sceneHeight);
+            if (currentScene.getStylesheets().size() > 0) {
+                nextScene.getStylesheets().addAll(currentScene.getStylesheets());
+            }
+            primaryStage.setScene(nextScene);
+
+            // Animasyon sıralaması oluştur
+            SequentialTransition sequence = new SequentialTransition();
+
+            // 1. Adım: Görseli yavaşça göster - SÜREYİ KISALTIN
+            FadeTransition fadeInImage = new FadeTransition(Duration.millis(300), imageView);
+            fadeInImage.setFromValue(0.0);
+            fadeInImage.setToValue(1.0);
+
+            // 2. Adım: Biraz bekle - SÜREYİ KISALTIN
+            PauseTransition pause = new PauseTransition(Duration.millis(400));
+
+            // 3. Adım: Görseli yavaşça gizle, yeni ekranı göster - SÜREYİ KISALTIN
+            ParallelTransition crossFade = new ParallelTransition();
+
+            FadeTransition fadeOutImage = new FadeTransition(Duration.millis(300), imageView);
+            fadeOutImage.setFromValue(1.0);
+            fadeOutImage.setToValue(0.0);
+
+            FadeTransition fadeInScreen = new FadeTransition(Duration.millis(300), nextScreenRoot);
+            fadeInScreen.setFromValue(0.0);
+            fadeInScreen.setToValue(1.0);
+
+            crossFade.getChildren().addAll(fadeOutImage, fadeInScreen);
+
+            // Tüm animasyonları sırasıyla ekle
+            sequence.getChildren().addAll(fadeInImage, pause, crossFade);
+
+            // Animasyon bitince görseli kaldır
+            sequence.setOnFinished(event -> {
+                transitionPane.getChildren().remove(imageView);
+            });
+
+            // Animasyonu başlat
+            sequence.play();
+
+        } catch (Exception e) {
+            System.err.println("Geçiş görseli yüklenirken hata: " + e.getMessage());
+            e.printStackTrace();
+
+            // Hata durumunda normal fade geçişi uygula
+            Scene nextScene = new Scene(nextScreenRoot, sceneWidth, sceneHeight);
+            if (currentScene.getStylesheets().size() > 0) {
+                nextScene.getStylesheets().addAll(currentScene.getStylesheets());
+            }
+
+            nextScreenRoot.setOpacity(0);
+            primaryStage.setScene(nextScene);
+
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(500), nextScreenRoot);
+            fadeIn.setFromValue(0.0);
+            fadeIn.setToValue(1.0);
+            fadeIn.play();
         }
     }
 

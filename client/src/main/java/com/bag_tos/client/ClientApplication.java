@@ -23,10 +23,20 @@ public class ClientApplication extends Application {
             gameState = new GameState();
             networkManager = new NetworkManager();
 
+            javafx.geometry.Rectangle2D screenBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+            double screenWidth = screenBounds.getWidth();
+            double screenHeight = screenBounds.getHeight();
+
+            // Ekranın %80'i kadar
+            double width = screenWidth * 0.8;
+            double height = screenHeight * 0.8;
+
             // Ana pencere ayarları
-            primaryStage.setTitle("Town of Salem Clone");
-            primaryStage.setMinWidth(700);
-            primaryStage.setMinHeight(500);
+            primaryStage.setTitle("Town of Marmara");
+            primaryStage.setWidth(width);
+            primaryStage.setHeight(height);
+            primaryStage.setMinWidth(800);
+            primaryStage.setMinHeight(600);
 
             // Opsiyonel: Uygulama ikonu
             try {

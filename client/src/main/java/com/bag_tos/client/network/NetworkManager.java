@@ -8,8 +8,10 @@ import com.bag_tos.common.util.JsonUtils;
 
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class NetworkManager {
     private Socket socket;
@@ -20,6 +22,9 @@ public class NetworkManager {
     private volatile boolean connected;
     private String serverAddress;
     private int serverPort;
+
+    private BlockingQueue<Message> responseQueue = new LinkedBlockingQueue<>();
+
 
     public NetworkManager() {
         this.executor = Executors.newSingleThreadExecutor();
@@ -67,8 +72,14 @@ public class NetworkManager {
 
         try {
             Message message = JsonUtils.parseMessage(jsonMessage);
-            if (message != null && messageListener != null) {
-                messageListener.onMessageReceived(message);
+            if (message != null) {
+                // Mesajı kuyruğa ekle
+                responseQueue.offer(message);
+
+                // Dinleyiciler varsa onları bilgilendir
+                if (messageListener != null) {
+                    messageListener.onMessageReceived(message);
+                }
             }
         } catch (Exception e) {
             System.err.println("Mesaj işleme hatası: " + e.getMessage());
@@ -189,6 +200,10 @@ public class NetworkManager {
 
     public int getServerPort() {
         return serverPort;
+    }
+
+    public Message waitForResponse() {
+        return responseQueue.poll();
     }
 
     public interface MessageListener {
