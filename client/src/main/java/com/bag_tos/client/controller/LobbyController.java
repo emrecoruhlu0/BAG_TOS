@@ -1,5 +1,6 @@
 package com.bag_tos.client.controller;
 
+import com.bag_tos.client.ClientApplication;
 import com.bag_tos.client.model.GameState;
 import com.bag_tos.client.model.Player;
 import com.bag_tos.client.network.MessageHandler;
@@ -22,10 +23,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.InputStream;
 import java.util.List;
 
 public class LobbyController {
@@ -122,16 +125,6 @@ public class LobbyController {
             }
 
             customImageFadeTransition(gameController.getView(), "/images/logo.png");
-
-
-//            Scene scene = new Scene(gameController.getView(), 900, 700);
-//
-//            // CSS stillerini ekle
-//            if (getClass().getResource("/css/application.css") != null) {
-//                scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
-//            }
-//
-//            primaryStage.setScene(scene);
         });
     }
 
@@ -165,7 +158,7 @@ public class LobbyController {
             nextScreenRoot.setOpacity(0);
             imageView.setOpacity(0);
 
-            // Yeni sahneyi ayarla
+            // Yeni sahneyi ayarla - ClientApplication'dan boyutları kullan
             Scene nextScene = new Scene(transitionPane, sceneWidth, sceneHeight);
             if (currentScene.getStylesheets().size() > 0) {
                 nextScene.getStylesheets().addAll(currentScene.getStylesheets());
@@ -212,7 +205,7 @@ public class LobbyController {
             System.err.println("Geçiş görseli yüklenirken hata: " + e.getMessage());
             e.printStackTrace();
 
-            // Hata durumunda normal fade geçişi uygula
+            // Hata durumunda normal fade geçişi uygula - ClientApplication'dan boyutları kullan
             Scene nextScene = new Scene(nextScreenRoot, sceneWidth, sceneHeight);
             if (currentScene.getStylesheets().size() > 0) {
                 nextScene.getStylesheets().addAll(currentScene.getStylesheets());

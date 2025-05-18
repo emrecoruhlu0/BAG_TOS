@@ -1,5 +1,6 @@
 package com.bag_tos.client.view;
 
+import com.bag_tos.client.ClientApplication;
 import com.bag_tos.client.model.Player;
 import com.bag_tos.client.view.components.ChatPanel;
 import com.bag_tos.client.view.components.PlayerListView;
