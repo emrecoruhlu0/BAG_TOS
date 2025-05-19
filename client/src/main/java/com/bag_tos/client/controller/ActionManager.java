@@ -22,9 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Aksiyon yönetimini merkezi olarak yapan sınıf
- */
+
 public class ActionManager {
     private GameState gameState;
     private NetworkManager networkManager;
@@ -38,9 +36,7 @@ public class ActionManager {
         this.view = view;
     }
 
-    /**
-     * Mevcut rol ve faza göre uygun aksiyonları ekler
-     */
+
     public void updateActions() {
         // Eğer zaten UI thread'inde değilsek, Platform.runLater kullan
         if (!Platform.isFxApplicationThread()) {
@@ -85,10 +81,7 @@ public class ActionManager {
             e.printStackTrace();
         }
     }
-    /**
-     * Özel durumları (hapis, jester, vb.) kontrol eder
-     * @return Özel durum işlendiyse true
-     */
+
     private boolean handleSpecialCases() {
         String currentRole = gameState.getCurrentRole();
         GameState.Phase currentPhase = gameState.getCurrentPhase();
@@ -126,9 +119,7 @@ public class ActionManager {
 
         return false;
     }
-    /**
-     * Pasif Jailor mesajını gösterir
-     */
+
     private void showInactiveJailorMessage() {
         VBox actionPanel = view.getActionPanel();
         actionPanel.getChildren().clear();
@@ -140,9 +131,6 @@ public class ActionManager {
         view.addSystemMessage("Gündüz fazında kimseyi hapsetmediniz. Bu gece aksiyon gerçekleştiremeyeceksiniz.");
     }
 
-    /**
-     * Gece fazındaki aksiyonları ekler
-     */
     private void addNightActions(String role) {
         if (role == null) {
             System.out.println("[HATA] ActionManager: Rol bilgisi bulunamadı!");
@@ -168,9 +156,6 @@ public class ActionManager {
         }
     }
 
-    /**
-     * Gündüz fazındaki aksiyonları ekler
-     */
     private void addDayActions(String role) {
         // Tüm oyuncular için oylama aksiyonu
         addVotingAction();
@@ -181,9 +166,6 @@ public class ActionManager {
         }
     }
 
-    /**
-     * Mafya için öldürme aksiyonu ekler
-     */
     private void addMafiaKillAction() {
         System.out.println("[DEBUG] ActionManager: Mafya öldürme aksiyonu ekleniyor...");
 
@@ -245,9 +227,6 @@ public class ActionManager {
         System.out.println("[DEBUG] ActionManager: Mafya öldürme aksiyonu eklendi");
     }
 
-    /**
-     * Doktor için iyileştirme aksiyonu ekler
-     */
     private void addDoctorHealAction() {
         System.out.println("[DEBUG] ActionManager: Doktor iyileştirme aksiyonu ekleniyor...");
 
@@ -298,9 +277,6 @@ public class ActionManager {
         System.out.println("[DEBUG] ActionManager: Doktor iyileştirme aksiyonu eklendi");
     }
 
-    /**
-     * Şerif için araştırma aksiyonu ekler
-     */
     private void addSheriffInvestigateAction() {
         System.out.println("[DEBUG] ActionManager: Şerif araştırma aksiyonu ekleniyor...");
 
@@ -352,9 +328,6 @@ public class ActionManager {
         System.out.println("[DEBUG] ActionManager: Şerif araştırma aksiyonu eklendi");
     }
 
-    /**
-     * Gardiyan için infaz aksiyonu ekler (gece)
-     */
     private void addJailorExecuteAction() {
         System.out.println("[DEBUG] ActionManager: Gardiyan infaz aksiyonu ekleniyor...");
 
@@ -383,9 +356,6 @@ public class ActionManager {
         System.out.println("[DEBUG] ActionManager: Gardiyan infaz aksiyonu eklendi");
     }
 
-    /**
-     * Gardiyan için hapsetme aksiyonu ekler (gündüz)
-     */
     private void addJailorJailAction() {
         System.out.println("[DEBUG] ActionManager: Gardiyan hapsetme aksiyonu ekleniyor...");
 
@@ -437,9 +407,6 @@ public class ActionManager {
         System.out.println("[DEBUG] ActionManager: Gardiyan hapsetme aksiyonu eklendi");
     }
 
-    /**
-     * Oylama aksiyonu ekler
-     */
     private void addVotingAction() {
         System.out.println("[DEBUG] ActionManager: Oylama aksiyonu ekleniyor...");
 

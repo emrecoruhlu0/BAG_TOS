@@ -36,13 +36,12 @@ public class LoginController {
         this.view = new LoginView();
 
         setupWindow();
-        //setupResponsiveLayout();
         configureView();
     }
 
     private void setupWindow() {
         // Pencere boyutunu ve başlığını ayarla
-        primaryStage.setTitle("Town of Salem Clone - Login");
+        primaryStage.setTitle("Town of Marmara");
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
 
@@ -62,7 +61,6 @@ public class LoginController {
             scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
         }
     }
-
 
     private void configureView() {
         view.getConnectButton().setOnAction(e -> handleConnect());

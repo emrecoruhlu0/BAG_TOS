@@ -1,8 +1,5 @@
 package com.bag_tos.common.message;
 
-/**
- * İstemci ve sunucu arasında gönderilen mesaj tiplerini tanımlar
- */
 public enum MessageType {
     // İstemciden sunucuya gidecek komutlar
     READY,              // Oyuncunun hazır olduğunu bildirir

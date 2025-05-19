@@ -40,7 +40,6 @@ public class GameController {
     private ActionManager actionManager;
     private Map<String, String> selectedAvatars = new HashMap<>();
 
-
     public GameController(Stage primaryStage, GameState gameState, NetworkManager networkManager) {
         this.primaryStage = primaryStage;
         this.gameState = gameState;
@@ -372,7 +371,6 @@ public class GameController {
         // ActionManager'ı kullan
         actionManager.updateActions();
     }
-
 
     public void showInactiveJailorMessage() {
         Platform.runLater(() -> {

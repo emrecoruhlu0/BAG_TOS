@@ -3,15 +3,12 @@ package com.bag_tos.client.model;
 import javafx.beans.property.*;
 
 public class Player {
-    // Mevcut özellikler
     private final StringProperty username = new SimpleStringProperty();
     private final StringProperty role = new SimpleStringProperty();
     private final BooleanProperty alive = new SimpleBooleanProperty(true);
 
-    // Yeni avatar özelliği
     private final StringProperty avatarId = new SimpleStringProperty("avatar1"); // Varsayılan
 
-    // Yapıcılar
     public Player() {
     }
 

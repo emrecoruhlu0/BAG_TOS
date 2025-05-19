@@ -1,8 +1,6 @@
 package com.bag_tos.common.config;
 
-/**
- * Oyun yapılandırma ayarları (Ortak)
- */
+
 public class GameConfig {
     // Oyuncu limitleri
     public static final int MIN_PLAYERS = 4;

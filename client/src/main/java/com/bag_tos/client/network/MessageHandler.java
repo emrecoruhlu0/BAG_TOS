@@ -21,9 +21,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
     private LobbyController lobbyController;
     private GameState gameState;
 
-    private boolean initialPlayerUpdateDone = false;
-
-    // GameController için constructor
     public MessageHandler(GameController gameController, GameState gameState) {
         this.gameController = gameController;
         this.lobbyController = null;
@@ -117,18 +114,12 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
     }
 
-    /**
-     * Sadece süre güncellemesi yapar
-     */
     private void updateTimeOnly() {
         if (gameController != null) {
             gameController.updateTimeOnly();
         }
     }
 
-    /**
-     * Sadece oyuncu listesini günceller
-     */
     private void updatePlayersOnly() {
         if (gameController != null) {
             gameController.updatePlayerListOnly();
@@ -137,18 +128,12 @@ public class MessageHandler implements NetworkManager.MessageListener {
         }
     }
 
-    /**
-     * Sadece aksiyon panelini günceller
-     */
     private void updateActionsOnly() {
         if (gameController != null) {
             gameController.updateActionsOnly();
         }
     }
 
-    /**
-     * Tam UI güncellemesi yapar
-     */
     private void updateFullUI() {
         if (gameController != null) {
             gameController.updateUI();
@@ -242,16 +227,12 @@ public class MessageHandler implements NetworkManager.MessageListener {
 
     private void handleGameStateMessage(Message message) {
         try {
-            // YENİ - Faz değişimini atlama bayrağını kontrol et
             Boolean skipPhaseUpdate = (Boolean) message.getDataValue("skipPhaseUpdate");
 
-            // Timestamp bilgisi
             Long timestamp = (Long) message.getDataValue("timestamp");
 
-            // YENI - İlk olarak sadece bir süre güncellemesi olup olmadığını kontrol edelim
             boolean isOnlyTimeUpdate = false;
 
-            // Eğer remainingTime var ama players, phase, message veya event yoksa, sadece süre güncellemesidir
             if (message.getDataValue("remainingTime") != null &&
                     message.getDataValue("players") == null &&
                     message.getDataValue("phase") == null &&
@@ -279,7 +260,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 }
             }
 
-            // Faz bilgisini güncelle (SADECE skipPhaseUpdate false ise)
             if (skipPhaseUpdate == null || !skipPhaseUpdate) {
                 String phase = null;
 
@@ -302,7 +282,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
                 System.out.println("Faz güncellemesi atlanıyor, skipPhaseUpdate=true");
             }
 
-            // Zamanı güncelle
             if (message.getDataValue("remainingTime") != null) {
                 Integer time = (Integer) message.getDataValue("remainingTime");
                 Integer oldTime = gameState.getRemainingTime();
@@ -413,7 +392,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
                     newGamePhase = GameState.Phase.LOBBY;
             }
 
-            // YENİ - Merkezi metodu çağır (zorla güncelleme ile)
             updateGamePhase(newPhase, true);
 
             // Sistem mesajı ekle
@@ -549,7 +527,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
                     }
                 }
                 break;
-            // Diğer olaylar için ek işleme mantığı eklenebilir
         }
     }
 
@@ -867,7 +844,6 @@ public class MessageHandler implements NetworkManager.MessageListener {
             updatedPlayers.add(player);
         }
 
-        // GameState'teki oyuncu listesini güncelle
         gameState.getPlayers().clear();
         gameState.getPlayers().addAll(updatedPlayers);
 

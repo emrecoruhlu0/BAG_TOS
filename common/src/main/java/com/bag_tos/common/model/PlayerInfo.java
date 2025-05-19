@@ -1,8 +1,5 @@
 package com.bag_tos.common.model;
 
-/**
- * Oyuncu bilgilerini tutan model sınıfı
- */
 public class PlayerInfo {
     private String username;
     private boolean alive;

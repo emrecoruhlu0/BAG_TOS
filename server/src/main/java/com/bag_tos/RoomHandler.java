@@ -28,9 +28,6 @@ public class RoomHandler {
     // Aktif kullanıcı adları
     private Set<String> activeUsernames;
 
-    /**
-     * RoomHandler oluşturur ve temel odaları kurar
-     */
     public RoomHandler() {
         this.rooms = new HashMap<>();
         this.players = new ArrayList<>();
@@ -45,9 +42,6 @@ public class RoomHandler {
         createRoom("MAFYA"); // Mafya özel odası
     }
 
-    /**
-     * Oyunu başlatır
-     */
     public void startGame() {
         if (gameStarted) {
             return; // Zaten başlamış
@@ -190,9 +184,6 @@ public class RoomHandler {
         broadcastToRoom(jailRoom, chatMessage);
     }
 
-    /**
-     * Oyuncuyu belirtilen odaya ekler
-     */
     public void addToRoom(String roomName, ClientHandler player) {
         if (!rooms.containsKey(roomName)) {
             createRoom(roomName);
@@ -213,9 +204,6 @@ public class RoomHandler {
         }
     }
 
-    /**
-     * Oyuncuyu odadan çıkarır
-     */
     public void removeFromRoom(String roomName, ClientHandler player) {
         if (rooms.containsKey(roomName) && rooms.get(roomName).contains(player)) {
             rooms.get(roomName).remove(player);
@@ -225,9 +213,6 @@ public class RoomHandler {
         }
     }
 
-    /**
-     * Yeni oyuncu katılımını bildirir
-     */
     public void notifyPlayerJoined(String username) {
         // Oyuncu katılım bilgisi
         PlayerJoinResponse joinResponse = new PlayerJoinResponse(
@@ -244,9 +229,6 @@ public class RoomHandler {
         broadcastToRoom("LOBBY", joinMessage);
     }
 
-    /**
-     * Oyuncu ayrılışını bildirir
-     */
     public void notifyPlayerLeft(String username) {
         // Oyuncuyu listelerden çıkar
         players.removeIf(p -> p.getUsername().equals(username));
@@ -269,9 +251,6 @@ public class RoomHandler {
         broadcastToRoom("LOBBY", leaveMessage);
     }
 
-    /**
-     * Sohbet mesajını odadaki tüm oyunculara bildirir
-     */
     public void broadcastChatToRoom(String roomName, String sender, String chatContent, String chatRoom) {
         // Gece fazında genel sohbeti kontrol et
         if (gameStarted && "LOBBY".equals(chatRoom) && game.getCurrentPhase() == GamePhase.NIGHT &&
@@ -305,53 +284,32 @@ public class RoomHandler {
         broadcastToRoom(roomName, chatMessage);
     }
 
-    /**
-     * Mesajı odadaki tüm oyunculara bildirir
-     */
     public void broadcastToRoom(String roomName, Message message) {
         if (rooms.containsKey(roomName)) {
             rooms.get(roomName).forEach(p -> p.sendJsonMessage(message));
         }
     }
 
-    /**
-     * Odadaki tüm oyuncuları döndürür
-     */
     public List<ClientHandler> getClientsInRoom(String roomName) {
         return rooms.getOrDefault(roomName, new ArrayList<>());
     }
 
-    /**
-     * Hazır oyuncu sayısını artırır
-     */
     public void increaseReadyCount() {
         readyCount++;
     }
 
-    /**
-     * Oyun başlatma isteklerini artırır
-     */
     public void increaseStartCount() {
         startCount++;
     }
 
-    /**
-     * Hazır oyuncu sayısını döndürür
-     */
     public int getReadyCount() {
         return readyCount;
     }
 
-    /**
-     * Oyun başlatma isteklerini döndürür
-     */
     public int getStartCount() {
         return startCount;
     }
 
-    /**
-     * Oyun başlatma koşullarını kontrol eder
-     */
     public void checkGameStart() {
         if (readyCount >= GameConfig.MIN_PLAYERS && startCount >= 1) {
             startGame();
@@ -366,37 +324,22 @@ public class RoomHandler {
         }
     }
 
-    /**
-     * Kullanıcı adının kullanımda olup olmadığını kontrol eder
-     */
     public boolean isUsernameTaken(String username) {
         return activeUsernames.contains(username);
     }
 
-    /**
-     * Kullanıcı adını aktif listesine ekler
-     */
     public void addUsername(String username) {
         activeUsernames.add(username);
     }
 
-    /**
-     * Kullanıcı adını aktif listesinden çıkarır
-     */
     public void removeUsername(String username) {
         activeUsernames.remove(username);
     }
 
-    /**
-     * Oyun nesnesini döndürür
-     */
     public Game getGame() {
         return game;
     }
 
-    /**
-     * Oyuncuların güncel durumunu içeren mesaj oluşturur
-     */
     public Message createPlayerListMessage() {
         // Oyuncu bilgilerini topla
         List<PlayerInfo> playerInfoList = new ArrayList<>();
@@ -418,9 +361,6 @@ public class RoomHandler {
         return playerListMessage;
     }
 
-    /**
-     * Oyunun mevcut durumunu bildirir
-     */
     public void broadcastGameState() {
         Message gameStateMessage;
 
@@ -449,8 +389,6 @@ public class RoomHandler {
             gameStateMessage.addData("readyCount", readyCount);
             gameStateMessage.addData("state", "LOBBY");
         }
-
-        // Tüm oyunculara bildir
         broadcastToRoom("LOBBY", gameStateMessage);
     }
 }

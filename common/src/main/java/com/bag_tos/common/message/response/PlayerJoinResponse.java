@@ -12,7 +12,6 @@ public class PlayerJoinResponse {
         this.totalPlayers = totalPlayers;
     }
 
-    // Getter ve Setter metodları
     public String getUsername() {
         return username;
     }

@@ -17,9 +17,6 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * İstemci bağlantısını yöneten ve JSON mesajlaşma sistemini kullanan sınıf
- */
 public class ClientHandler implements Runnable {
     private Socket socket;
     private BufferedReader in;
@@ -30,7 +27,6 @@ public class ClientHandler implements Runnable {
     private Game game;
     private boolean isAlive = true;
 
-    // Anti-hile
     private int invalidMessageCount = 0;
     private long lastReconnectTime = 0;
 
@@ -101,9 +97,6 @@ public class ClientHandler implements Runnable {
         return avatarId;
     }
 
-    /**
-     * Geçersiz mesaj sayacını artırır ve gerekirse oyuncuyu atar
-     */
     private void incrementInvalidMessageCount() {
         invalidMessageCount++;
 
@@ -202,9 +195,6 @@ public class ClientHandler implements Runnable {
         return false;
     }
 
-    /**
-     * Gelen JSON mesajını işler
-     */
     private void processMessage(Message message) {
         try {
             // Oyuncu ölü ise, sadece belirli mesajlara izin ver
@@ -248,9 +238,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Hazır olma mesajını işler
-     */
     private void handleReadyCommand(Message message) {
         try {
             ReadyRequest readyRequest = JsonUtils.fromJson(
@@ -279,9 +266,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Oyun başlatma mesajını işler
-     */
     private void handleStartGameCommand(Message message) {
         try {
             roomHandler.increaseStartCount();
@@ -568,9 +552,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Sohbet mesajını işler
-     */
     private void handleChatCommand(Message message) {
         try {
             ChatRequest chatRequest = JsonUtils.fromJson(
@@ -633,9 +614,7 @@ public class ClientHandler implements Runnable {
             sendErrorMessage("PROCESSING_ERROR", "Sohbet komutu işlenirken hata oluştu");
         }
     }
-    /**
-     * Kaynakları temizler ve bağlantıyı kapatır
-     */
+
     void cleanup() {
         try {
             if (socket != null && !socket.isClosed()) {
@@ -651,17 +630,11 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * JSON formatında mesaj gönderir
-     */
     public void sendJsonMessage(Message message) {
         String jsonString = JsonUtils.toJson(message);
         out.println(jsonString);
     }
 
-    /**
-     * Hata mesajı oluşturur ve gönderir
-     */
     private void sendErrorMessage(String code, String errorMessage) {
         Message errorMsg = new Message(MessageType.ERROR);
         errorMsg.addData("code", code);
@@ -669,8 +642,6 @@ public class ClientHandler implements Runnable {
 
         sendJsonMessage(errorMsg);
     }
-
-    // Getter ve Setter metodları
 
     public void setAlive(boolean alive) {
         isAlive = alive;
@@ -688,11 +659,9 @@ public class ClientHandler implements Runnable {
         return game;
     }
 
-
     public boolean isAlive() {
         return isAlive;
     }
-
 
     private boolean isMafia() {
         return game != null && game.getRole(getUsername()) instanceof Mafya;

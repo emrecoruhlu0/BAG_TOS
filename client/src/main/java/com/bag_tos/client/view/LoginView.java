@@ -29,7 +29,7 @@ public class LoginView extends VBox {
         setAlignment(Pos.CENTER);
 
         // Başlık
-        Text titleText = new Text("Town of Salem Clone");
+        Text titleText = new Text("Town of Marmara");
         titleText.setFont(Font.font("System", FontWeight.BOLD, 24));
 
         // Giriş formu

@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Town of Salem benzeri oyun için sunucu uygulaması
- */
 public class Server {
     private static final int PORT = 1234;
     private static final int THREAD_POOL_SIZE = 10;
@@ -21,9 +18,6 @@ public class Server {
     private ExecutorService threadPool;
     private boolean running;
 
-    /**
-     * Sunucuyu başlatır
-     */
     public void start() {
         try {
             // Sunucu soketi oluştur
@@ -53,9 +47,6 @@ public class Server {
         }
     }
 
-    /**
-     * Yeni bağlantıyı işler
-     */
     private void handleNewConnection(Socket clientSocket) {
         try {
             // Yeni istemci handler oluştur
@@ -76,9 +67,6 @@ public class Server {
         }
     }
 
-    /**
-     * Sunucuyu kapatır
-     */
     public void shutdown() {
         running = false;
 
@@ -108,9 +96,6 @@ public class Server {
         System.out.println("Sunucu kapatıldı.");
     }
 
-    /**
-     * Ana metot
-     */
     public static void main(String[] args) {
         Server server = new Server();
 

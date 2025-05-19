@@ -238,24 +238,6 @@ public class LobbyController {
         primaryStage.setY(y);
     }
 
-    public void handleGameStateUpdate(Message gameStateMessage) {
-        // Oyun durumu güncelleme
-        String state = (String) gameStateMessage.getDataValue("state");
-        if ("GAME_STARTING".equals(state)) {
-            // Oyun başlıyor, oyun ekranına geç
-            startGame();
-        }
-
-        // Hazır sayısını güncelle
-        Integer readyCount = (Integer) gameStateMessage.getDataValue("readyCount");
-        if (readyCount != null) {
-            gameState.setData("readyCount", readyCount);
-            Platform.runLater(() -> {
-                view.updateReadyCount(readyCount);
-            });
-        }
-    }
-
     public void handleDisconnect() {
         Platform.runLater(() -> {
             Alert alert = AlertUtils.createAlert(

@@ -290,15 +290,6 @@ public class Game {
         }
     }
 
-    private String getPlayerAvatarId(String username) {
-        for (ClientHandler player : players) {
-            if (player.getUsername().equals(username)) {
-                return player.getAvatarId();
-            }
-        }
-        return "avatar1"; // Varsayılan avatar
-    }
-
     public Message createGameStateMessage() {
         List<PlayerInfo> playerInfoList = new ArrayList<>();
         for (ClientHandler player : players) {
@@ -448,8 +439,6 @@ public class Game {
         }
     }
 
-// ClientHandler.java'daki sendAvailableActions metodu için düzeltme
-
     private void sendAvailableActions() {
         System.out.println("sendAvailableActions çağrıldı, mevcut faz: " + currentPhase);
 
@@ -543,9 +532,6 @@ public class Game {
         }
     }
 
-    // Optimizations for improving UI performance in Game.java
-
-    // Replace the startCountdown method with this optimized version
     private void startCountdown() {
         System.out.println("startCountdown çağrıldı, kalan süre: " + remainingSeconds + " saniye, faz: " + currentPhase);
 

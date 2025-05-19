@@ -10,7 +10,6 @@ public class RoleAssignmentResponse {
         this.role = role;
     }
 
-    // Getter ve Setter metodları
     public String getRole() {
         return role;
     }

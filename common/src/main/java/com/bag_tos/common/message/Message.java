@@ -4,9 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Map;
 import java.util.HashMap;
 
-/**
- * İstemci ve sunucu arasında gönderilen tüm mesajların temel sınıfı
- */
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Message {
     private MessageType type;

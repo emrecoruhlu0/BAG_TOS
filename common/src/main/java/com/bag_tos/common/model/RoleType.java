@@ -1,6 +1,5 @@
 package com.bag_tos.common.model;
 
-// common/src/main/java/com/bag_tos/common/model/RoleType.java
 public enum RoleType {
     MAFYA("Mafya"),
     SERIF("Şerif"),

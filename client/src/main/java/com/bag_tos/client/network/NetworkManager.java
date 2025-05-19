@@ -5,7 +5,6 @@ import com.bag_tos.common.message.MessageType;
 import com.bag_tos.common.message.request.*;
 import com.bag_tos.common.model.ActionType;
 import com.bag_tos.common.util.JsonUtils;
-
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.BlockingQueue;
@@ -113,53 +112,6 @@ public class NetworkManager {
         return false;
     }
 
-    // Kullanıcı adı gönderimi için yardımcı metot
-    public void sendAuthMessage(String username) {
-        Message message = new Message(MessageType.READY);
-        message.addData("username", username);
-        sendMessage(message);
-    }
-
-    // Hazır durumu için yardımcı metot
-    public boolean sendReadyMessage(boolean isReady) {
-        Message message = new Message(MessageType.READY);
-        ReadyRequest readyRequest = new ReadyRequest(isReady);
-        message.addData("readyRequest", readyRequest);
-        return sendMessage(message);
-    }
-
-    // Oyun başlatma için yardımcı metot
-    public boolean sendStartGameMessage() {
-        Message message = new Message(MessageType.START_GAME);
-        StartGameRequest startRequest = new StartGameRequest();
-        message.addData("startGameRequest", startRequest);
-        return sendMessage(message);
-    }
-
-    // Aksiyon için yardımcı metot
-    public boolean sendActionMessage(ActionType actionType, String target) {
-        Message message = new Message(MessageType.ACTION);
-        ActionRequest actionRequest = new ActionRequest(actionType.name(), target);
-        message.addData("actionRequest", actionRequest);
-        return sendMessage(message);
-    }
-
-    // Oylama için yardımcı metot
-    public boolean sendVoteMessage(String target) {
-        Message message = new Message(MessageType.VOTE);
-        VoteRequest voteRequest = new VoteRequest(target);
-        message.addData("voteRequest", voteRequest);
-        return sendMessage(message);
-    }
-
-    // Sohbet için yardımcı metot
-    public boolean sendChatMessage(String text, String room) {
-        Message message = new Message(MessageType.CHAT);
-        ChatRequest chatRequest = new ChatRequest(text, room);
-        message.addData("chatRequest", chatRequest);
-        return sendMessage(message);
-    }
-
     public void setMessageListener(MessageListener listener) {
         this.messageListener = listener;
     }
@@ -188,22 +140,6 @@ public class NetworkManager {
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
         }
-    }
-
-    public boolean isConnected() {
-        return connected && socket != null && !socket.isClosed();
-    }
-
-    public String getServerAddress() {
-        return serverAddress;
-    }
-
-    public int getServerPort() {
-        return serverPort;
-    }
-
-    public Message waitForResponse() {
-        return responseQueue.poll();
     }
 
     public interface MessageListener {
