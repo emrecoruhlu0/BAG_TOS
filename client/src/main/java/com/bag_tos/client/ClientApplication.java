@@ -49,18 +49,18 @@ public class ClientApplication extends Application {
 
             // İlk ekranı göster (Login)
             LoginController loginController = new LoginController(primaryStage, gameState, networkManager);
-            Scene scene = new Scene(loginController.getView(), 600, 400);
+            //Scene scene = new Scene(loginController.getView(), 600, 400);
 
             // CSS stil dosyasını ekle
-            try {
-                if (getClass().getResource("/css/application.css") != null) {
-                    scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
-                }
-            } catch (Exception e) {
-                System.err.println("CSS dosyası yüklenirken hata: " + e.getMessage());
-            }
-
-            primaryStage.setScene(scene);
+//            try {
+//                if (getClass().getResource("/css/application.css") != null) {
+//                    scene.getStylesheets().add(getClass().getResource("/css/application.css").toExternalForm());
+//                }
+//            } catch (Exception e) {
+//                System.err.println("CSS dosyası yüklenirken hata: " + e.getMessage());
+//            }
+//
+//            primaryStage.setScene(scene);
             primaryStage.show();
 
             // Pencere kapatılırken doğru şekilde temizlensin
