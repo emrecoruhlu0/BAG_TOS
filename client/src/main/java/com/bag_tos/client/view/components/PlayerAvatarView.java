@@ -31,6 +31,9 @@ public class PlayerAvatarView extends VBox {
         // Eksik olan atama - bu satır eklenmeli
         this.player = player;
 
+        this.avatarContainer = avatarContainer; // Bu satırı ekle
+
+
         setAlignment(Pos.CENTER);
         setSpacing(5);
         setPrefSize(100, 120);
@@ -123,6 +126,8 @@ public class PlayerAvatarView extends VBox {
 
             // İsim etiketini de güncelle
             nameLabel.getStyleClass().add("player-dead-label");
+
+            System.out.println("Ölü görünümü uygulandı: " + player.getUsername());
         } else {
             getStyleClass().remove("player-dead");
 
@@ -136,28 +141,52 @@ public class PlayerAvatarView extends VBox {
 
     private void applyDeadOverlay() {
         try {
-            // Overlay (ölü) görseli yükle
-            if (deadOverlay == null) {
-                deadOverlay = new ImageView(new Image(getClass().getResourceAsStream("/images/dead_overlay.png")));
+            // Şimdilik resim yüklemesini atla, direkt alternatif görünüm kullan
+            System.out.println("Ölü görünümü uygulanıyor (alternatif): " + player.getUsername());
+            applyAlternativeDeadEffect();
+
+        /* Dead overlay resmi için (şimdilik kapalı):
+        if (deadOverlay == null) {
+            InputStream overlayStream = getClass().getResourceAsStream("/images/dead_overlay.png");
+            if (overlayStream != null) {
+                deadOverlay = new ImageView(new Image(overlayStream));
                 deadOverlay.setFitWidth(80);
                 deadOverlay.setFitHeight(80);
                 deadOverlay.setPreserveRatio(true);
-            }
+                deadOverlay.setMouseTransparent(true);
 
-            // Eğer overlay henüz eklenmemiş ise ekle
-            if (!avatarContainer.getChildren().contains(deadOverlay)) {
-                avatarContainer.getChildren().add(deadOverlay);
+                if (!avatarContainer.getChildren().contains(deadOverlay)) {
+                    avatarContainer.getChildren().add(deadOverlay);
+                }
             }
-
-            // Ek olarak avatarı soluklaştır
-            avatarImage.setOpacity(0.6);
+        }
+        */
 
         } catch (Exception e) {
-            System.err.println("Ölü overlay'i yüklenirken hata: " + e.getMessage());
-            // Overlay yoksa en azından soluklaştır
-            avatarImage.setOpacity(0.5);
+            System.err.println("Ölü overlay'i uygulanırken hata: " + e.getMessage());
+            applyAlternativeDeadEffect();
         }
     }
+
+    private void applyAlternativeDeadEffect() {
+        // Dead overlay yoksa güçlü görsel efekt
+        avatarImage.setOpacity(0.3);
+
+        // Kırmızı gölge efekti
+        avatarImage.setStyle("-fx-effect: dropshadow(gaussian, rgba(139, 0, 0, 0.9), 20, 0.8, 0, 0);");
+
+        // Avatar container'a çapraz çizgi ve güçlü kenarlık efekti
+        avatarContainer.setStyle(
+                "-fx-border-color: #8B0000;" +
+                        "-fx-border-width: 4px;" +
+                        "-fx-border-radius: 40px;" +
+                        "-fx-background-color: rgba(139, 0, 0, 0.1);" +
+                        "-fx-effect: dropshadow(gaussian, rgba(139, 0, 0, 1.0), 15, 0.8, 0, 0);"
+        );
+
+        System.out.println("Alternatif ölü efekti uygulandı: " + player.getUsername());
+    }
+
 
     private void removeDeadOverlay() {
         // Eğer overlay varsa ve eklenmiş ise kaldır
@@ -167,7 +196,12 @@ public class PlayerAvatarView extends VBox {
 
         // Avatarı normal opaklığa getir
         avatarImage.setOpacity(1.0);
+        avatarImage.setStyle(""); // Efektleri temizle
+
+        // Container stilini temizle
+        avatarContainer.setStyle("");
     }
+
 
     public void updateStatus(boolean alive) {
         if (!alive) {

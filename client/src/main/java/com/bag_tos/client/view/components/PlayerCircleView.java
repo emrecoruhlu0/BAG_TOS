@@ -139,6 +139,7 @@ public class PlayerCircleView extends Pane {
     private void updatePlayerPositions() {
         if (playerAvatars.isEmpty()) return;
 
+        // Basit yaklaşım: Tüm oyuncuları aynı çembere yerleştir, sadece ölüleri görsel olarak farklılaştır
         int numPlayers = playerAvatars.size();
         double angleStep = 2 * Math.PI / numPlayers;
         double startAngle = -Math.PI / 2; // Üstten başla
@@ -153,6 +154,60 @@ public class PlayerCircleView extends Pane {
 
             avatar.setLayoutX(x);
             avatar.setLayoutY(y);
+
+            // Z-order: Ölü oyuncuları arkaya gönder
+            if (!avatar.getPlayer().isAlive()) {
+                avatar.toBack();
+                System.out.println("Ölü oyuncu arkaya gönderildi: " + avatar.getPlayer().getUsername());
+            } else {
+                avatar.toFront();
+            }
+        }
+
+        // Debug bilgisi
+        long deadCount = playerAvatars.stream()
+                .filter(avatar -> !avatar.getPlayer().isAlive())
+                .count();
+
+        if (deadCount > 0) {
+            System.out.println("Çemberde " + deadCount + " ölü oyuncu var");
         }
     }
+
+    private void positionPlayersInCircle(List<PlayerAvatarView> players, double circleRadius, double angleOffset) {
+        if (players.isEmpty()) return;
+
+        int numPlayers = players.size();
+        double angleStep = 2 * Math.PI / numPlayers;
+        double startAngle = -Math.PI / 2 + angleOffset; // Üstten başla + offset
+
+        for (int i = 0; i < numPlayers; i++) {
+            PlayerAvatarView avatar = players.get(i);
+
+            double angle = startAngle + i * angleStep;
+            double x = centerX + circleRadius * Math.cos(angle) - avatar.getPrefWidth() / 2;
+            double y = centerY + circleRadius * Math.sin(angle) - avatar.getPrefHeight() / 2;
+
+            avatar.setLayoutX(x);
+            avatar.setLayoutY(y);
+
+            // Ölü oyuncuları arkaya gönder (z-order)
+            if (!avatar.getPlayer().isAlive()) {
+                avatar.toBack();
+            } else {
+                avatar.toFront();
+            }
+        }
+    }
+
+    public void updateDeadPlayerCount() {
+        long deadCount = playerAvatars.stream()
+                .filter(avatar -> !avatar.getPlayer().isAlive())
+                .count();
+
+        if (deadCount > 0) {
+            System.out.println("Çemberde " + deadCount + " ölü oyuncu gösteriliyor");
+        }
+    }
+
 }

@@ -8,6 +8,8 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
+import java.io.InputStream;
+
 public class ClientApplication extends Application {
     private GameState gameState;
     private NetworkManager networkManager;
@@ -36,11 +38,23 @@ public class ClientApplication extends Application {
 
             // Opsiyonel: Uygulama ikonu
             try {
-                if (getClass().getResource("/images/logo.png") != null) {
-                    primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/logo.png")));
+                // Önce .ico dosyasını dene
+                InputStream iconStream = getClass().getResourceAsStream("/images/app-icon.png");
+                if (iconStream != null) {
+                    primaryStage.getIcons().add(new Image(iconStream));
+                    System.out.println("ICO ikon yüklendi");
+                } else {
+                    // .ico yoksa .png kullan
+                    iconStream = getClass().getResourceAsStream("/images/app-icon.png");
+                    if (iconStream != null) {
+                        primaryStage.getIcons().add(new Image(iconStream));
+                        System.out.println("PNG ikon yüklendi");
+                    } else {
+                        System.err.println("Hiçbir ikon dosyası bulunamadı");
+                    }
                 }
             } catch (Exception e) {
-                System.err.println("Logo yüklenirken hata: " + e.getMessage());
+                System.err.println("İkon yüklenirken hata: " + e.getMessage());
             }
 
             LoginController loginController = new LoginController(primaryStage, gameState, networkManager);

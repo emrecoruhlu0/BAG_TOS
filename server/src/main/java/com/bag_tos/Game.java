@@ -117,32 +117,12 @@ public class Game {
     }
 
     public void assignRoles() {
-        List<Role> rolePool = new ArrayList<>();
-        int playerCount = players.size();
+        List<Role> rolePool = createBalancedRolePool(players.size());
 
-        // Temel rolleri ekle
-        rolePool.add(new Mafya());
-        rolePool.add(new Serif());
-        rolePool.add(new Doktor());
-        rolePool.add(new Jailor());
-        rolePool.add(new Jester());
-
-        // Oyuncu sayısına göre ek mafya ekle
-        int mafiaCount = Math.max(1, playerCount / GameConfig.MAX_MAFIA_RATIO);
-        for (int i = 1; i < mafiaCount; i++) {
-            rolePool.add(new Mafya());
-        }
-
-        if (playerCount > GameConfig.MAX_PLAYERS) {
-            System.out.println("Uyarı: Oyuncu sayısı maksimum sınırı aştı: " + playerCount);
-        }
-
+        // Rolleri karıştır
         Collections.shuffle(rolePool);
 
-        while (rolePool.size() > players.size()) {
-            rolePool.remove(rolePool.size() - 1);
-        }
-
+        // Oyunculara rolleri ata
         for (int i = 0; i < players.size(); i++) {
             ClientHandler player = players.get(i);
             String username = player.getUsername();
@@ -154,12 +134,139 @@ public class Game {
             System.out.println("[DEBUG] Rol Atama: " + username + " -> " + role.getName() + " (" + role.getRoleType() + ")");
         }
 
-        // Tüm rolleri bir kez daha log'la
-        System.out.println("\n=== ROL DAĞILIMI ===");
-        for (Map.Entry<String, Role> entry : roles.entrySet()) {
-            System.out.println(entry.getKey() + " -> " + entry.getValue().getName());
+        // Rol dağılımını kontrol et ve logla
+        logRoleDistribution();
+    }
+
+    /**
+     * Oyuncu sayısına göre dengeli rol havuzu oluşturur
+     */
+    private List<Role> createBalancedRolePool(int playerCount) {
+        List<Role> rolePool = new ArrayList<>();
+
+        // Oyuncu sayısına göre konfigürasyon
+        RoleConfiguration config = getRoleConfiguration(playerCount);
+
+        System.out.println("=== ROL DAĞILIMI PLANI ===");
+        System.out.println("Oyuncu Sayısı: " + playerCount);
+        System.out.println("Mafya: " + config.mafiaCount);
+        System.out.println("Kasaba: " + config.townCount);
+        System.out.println("Neutral: " + config.neutralCount);
+        System.out.println("=========================");
+
+        // Mafya rollerini ekle
+        for (int i = 0; i < config.mafiaCount; i++) {
+            rolePool.add(new Mafya());
         }
-        System.out.println("===================\n");
+
+        // Kasaba rollerini ekle (öncelik sırasına göre)
+        List<Role> townRoles = createTownRoles(config.townCount);
+        rolePool.addAll(townRoles);
+
+        // Neutral rolleri ekle
+        for (int i = 0; i < config.neutralCount; i++) {
+            rolePool.add(new Jester());
+        }
+
+        return rolePool;
+    }
+
+    private RoleConfiguration getRoleConfiguration(int playerCount) {
+        RoleConfiguration config = new RoleConfiguration();
+
+        // Dinamik mafya hesaplama (sabitleri kullanarak)
+        int minMafia = Math.max(1, (int) Math.ceil(playerCount * GameConfig.MAFIA_RATIO_MIN));
+        int maxMafia = (int) Math.floor(playerCount * GameConfig.MAFIA_RATIO_MAX);
+
+        // Oyuncu sayısına göre optimal mafya sayısı
+        if (playerCount <= 4) {
+            config.mafiaCount = 1;
+        } else if (playerCount <= 6) {
+            config.mafiaCount = Math.max(minMafia, Math.min(2, maxMafia));
+        } else {
+            // Büyük gruplarda dengeli dağılım
+            config.mafiaCount = Math.max(minMafia, Math.min(playerCount / 3, maxMafia));
+        }
+
+        // Neutral sayısı (her zaman 1)
+        config.neutralCount = 1;
+
+        // Kalan oyuncular kasaba
+        config.townCount = playerCount - config.mafiaCount - config.neutralCount;
+
+        // Minimum kasaba kontrolü
+        if (config.townCount < 2) {
+            config.mafiaCount = Math.max(1, config.mafiaCount - 1);
+            config.townCount = playerCount - config.mafiaCount - config.neutralCount;
+        }
+
+        // Temel rollerin garanti edilmesi kontrolü
+        if (GameConfig.GUARANTEE_CORE_ROLES && config.townCount < 3 && playerCount >= 5) {
+            config.mafiaCount = 1;
+            config.townCount = playerCount - 1 - config.neutralCount;
+        }
+
+        return config;
+    }
+
+    /**
+     * Kasaba rollerini öncelik sırasına göre oluşturur
+     */
+    private List<Role> createTownRoles(int townCount) {
+        List<Role> townRoles = new ArrayList<>();
+
+        // Öncelik sırası: Doktor -> Serif -> Jailor -> Ek Doktor/Serif
+        if (townCount >= 1) townRoles.add(new Doktor());
+        if (townCount >= 2) townRoles.add(new Serif());
+        if (townCount >= 3) townRoles.add(new Jailor());
+
+        // Ek kasaba rolleri için döngüsel atama
+        for (int i = 3; i < townCount; i++) {
+            switch (i % 2) {
+                case 1 -> townRoles.add(new Doktor());  // Ek doktor
+                case 0 -> townRoles.add(new Serif());   // Ek serif
+            }
+        }
+
+        return townRoles;
+    }
+
+    /**
+     * Rol dağılımını detaylı şekilde loglar
+     */
+    private void logRoleDistribution() {
+        Map<String, Integer> roleCount = new HashMap<>();
+
+        for (Role role : roles.values()) {
+            String roleName = role.getName();
+            roleCount.put(roleName, roleCount.getOrDefault(roleName, 0) + 1);
+        }
+
+        System.out.println("\n=== FINAL ROL DAĞILIMI ===");
+        roleCount.forEach((roleName, count) ->
+                System.out.println(roleName + ": " + count + " kişi"));
+
+        // Denge kontrolü
+        int mafyaCount = roleCount.getOrDefault("Mafya", 0);
+        int totalTown = roleCount.getOrDefault("Doktor", 0) +
+                roleCount.getOrDefault("Serif", 0) +
+                roleCount.getOrDefault("Gardiyan", 0);
+        int neutralCount = roleCount.getOrDefault("Jester", 0);
+
+        System.out.println("DENGE KONTROLÜ:");
+        System.out.println("- Mafya: " + mafyaCount + " (" + String.format("%.1f", (mafyaCount * 100.0 / players.size())) + "%)");
+        System.out.println("- Kasaba: " + totalTown + " (" + String.format("%.1f", (totalTown * 100.0 / players.size())) + "%)");
+        System.out.println("- Neutral: " + neutralCount + " (" + String.format("%.1f", (neutralCount * 100.0 / players.size())) + "%)");
+        System.out.println("========================\n");
+    }
+
+    /**
+     * Rol konfigürasyon sınıfı
+     */
+    private static class RoleConfiguration {
+        int mafiaCount = 0;
+        int townCount = 0;
+        int neutralCount = 0;
     }
 
     private void sendRoleAssignment(ClientHandler player, Role role) {
@@ -195,7 +302,7 @@ public class Game {
                 cancelAllTimers();
 
                 currentPhase = GamePhase.NIGHT;
-                remainingSeconds = GameConfig.NIGHT_PHASE_DURATION;
+                remainingSeconds = GameConfig.getCurrentNightDuration();
                 nightActions.clear();
 
                 // Hapishane odasını kur
@@ -257,7 +364,7 @@ public class Game {
                 cancelAllTimers();
 
                 currentPhase = GamePhase.DAY;
-                remainingSeconds = GameConfig.DAY_PHASE_DURATION;
+                remainingSeconds = GameConfig.getCurrentDayDuration();
                 votes.clear();
 
                 // Kısa bir bekleme ekleyin
